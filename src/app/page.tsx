@@ -67,16 +67,22 @@ export default function LandingPage() {
     });
 
     // Staggered Features
-    gsap.from(".feature-box", {
-        scrollTrigger: {
-            trigger: ".feature-section",
-            start: "top 75%"
-        },
-        y: 40,
-        opacity: 0,
-        stagger: 0.2,
-        duration: 0.8,
-        ease: "back.out(1.7)"
+    const featureBoxes = gsap.utils.toArray('.feature-box');
+    featureBoxes.forEach((box: any, i) => {
+        gsap.fromTo(box, 
+            { y: 50, opacity: 0 },
+            {
+                y: 0,
+                opacity: 1,
+                duration: 0.8,
+                ease: "back.out(1.7)",
+                scrollTrigger: {
+                    trigger: box,
+                    start: "top 90%",
+                    toggleActions: "play none none reverse"
+                }
+            }
+        );
     });
 
   }, { scope: containerRef });
@@ -181,13 +187,22 @@ export default function LandingPage() {
       {/* Ticker */}
       <div className="ticker-wrap">
           <div className="ticker">
-              <span className="ticker-item">A+ AVAILABLE - TOKYO</span> •
-              <span className="ticker-item text-crimson">O- URGENT REQUEST - MUMBAI</span> •
-              <span className="ticker-item">B+ MATCHED - LONDON</span> •
-              <span className="ticker-item">AB- AVAILABLE - NYC</span> •
-              <span className="ticker-item">A+ AVAILABLE - BERLIN</span> •
-              <span className="ticker-item text-crimson">B- CRITICAL - DELHI</span> •
-              <span className="ticker-item">O+ DONOR READY - PARIS</span> •
+              <span className="ticker-item">A+ AVAILABLE - DHAKA</span> •
+              <span className="ticker-item text-crimson">O- URGENT REQUEST - CHITTAGONG</span> •
+              <span className="ticker-item">B+ MATCHED - SYLHET</span> •
+              <span className="ticker-item">AB- AVAILABLE - RAJSHAHI</span> •
+              <span className="ticker-item text-crimson">A- CRITICAL - KHULNA</span> •
+              <span className="ticker-item">O+ DONOR READY - BARISAL</span> •
+              <span className="ticker-item">B- AVAILABLE - RANGPUR</span> •
+              <span className="ticker-item text-crimson">AB+ URGENT - MYMENSINGH</span> •
+              <span className="ticker-item">A+ AVAILABLE - DHAKA</span> •
+              <span className="ticker-item text-crimson">O- URGENT REQUEST - CHITTAGONG</span> •
+              <span className="ticker-item">B+ MATCHED - SYLHET</span> •
+              <span className="ticker-item">AB- AVAILABLE - RAJSHAHI</span> •
+              <span className="ticker-item text-crimson">A- CRITICAL - KHULNA</span> •
+              <span className="ticker-item">O+ DONOR READY - BARISAL</span> •
+              <span className="ticker-item">B- AVAILABLE - RANGPUR</span> •
+              <span className="ticker-item text-crimson">AB+ URGENT - MYMENSINGH</span> •
           </div>
       </div>
 
@@ -288,8 +303,14 @@ export default function LandingPage() {
       </section>
 
       {/* Features Grid */}
-      <section className="feature-section" id="impact">
+      <section className="feature-section reveal-section" id="impact">
         <div className="container-lg">
+             <div className="section-intro text-center mb-16">
+                <h2 className="section-heading">Why BloodReq?</h2>
+                <p className="section-desc max-w-2xl mx-auto mt-4">
+                  Built for speed, security, and reliability in critical moments.
+                </p>
+             </div>
              <div className="grid-3">
                  <SpotlightCard className="feature-box" spotlightColor="rgba(220, 38, 38, 0.2)">
                      <div className="icon-box">01</div>
@@ -345,40 +366,39 @@ export default function LandingPage() {
           </div>
       </section>
 
-      {/* Footer */}
-      <footer className="footer-minimal">
-          <div className="footer-grid">
-              <div className="brand-col">
-                  <h4>BloodReq</h4>
-                  <p>The vital link in the chain of survival.</p>
-                  <div className="social-links mt-4 flex gap-4">
-                      <a href="#" className="opacity-50 hover:opacity-100">TW</a>
-                      <a href="#" className="opacity-50 hover:opacity-100">LI</a>
-                      <a href="#" className="opacity-50 hover:opacity-100">IG</a>
+      <footer className="footer-genz">
+          <div className="container-lg">
+             <div className="genz-footer-content">
+                  <div className="gf-brand">
+                      <span className="gf-logo">BloodReq</span>
+                      <span className="gf-badge">
+                          <span className="gf-dot"></span>
+                          Systems Normal
+                      </span>
                   </div>
-              </div>
-              <div className="link-col">
-                  <div className="col-group">
-                    <h5>Platform</h5>
-                    <a href="#">Donors</a>
-                    <a href="#">Hospitals</a>
-                    <a href="#">API</a>
+                  
+                  <div className="gf-links">
+                      <a href="#">Donors</a>
+                      <a href="#">Hospitals</a>
+                      <a href="#">Mission</a>
+                      <a href="#">Privacy</a>
                   </div>
-                  <div className="col-group">
-                    <h5>Company</h5>
-                    <a href="#">Mission</a>
-                    <a href="#">Careers</a>
-                    <a href="#">Press</a>
+
+                  <div className="gf-socials">
+                      <a href="#">X (Twitter)</a>
+                      <span className="slash">/</span>
+                      <a href="#">Instagram</a>
+                      <span className="slash">/</span>
+                      <a href="#">GitHub</a>
                   </div>
-                  <div className="col-group">
-                    <h5>Legal</h5>
-                    <a href="#">Privacy</a>
-                    <a href="#">Terms</a>
-                  </div>
-              </div>
-          </div>
-          <div className="footer-bottom">
-              © 2026 BloodReq Inc. All rights reserved. designed in Tokyo.
+             </div>
+             <div className="gf-copyright-mobile">
+                 © 2026 BloodReq Inc.
+             </div>
+             
+             <div className="gf-credit">
+                 Designed at some Cozy Place by <a href="https://tynybite.vercel.app" target="_blank" rel="noopener noreferrer">Tynybite Labs 🫡</a>.
+             </div>
           </div>
       </footer>
     </div>
