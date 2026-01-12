@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
@@ -15,6 +15,16 @@ gsap.registerPlugin(ScrollTrigger);
 export default function LandingPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [dataPoints, setDataPoints] = useState<Array<{ top: string; left: string; delay: string }>>([]);
+
+  useEffect(() => {
+    // Generate random data points only on client-side to prevent hydration mismatch
+    setDataPoints([...Array(6)].map((_, i) => ({
+      top: `${Math.random() * 80 + 10}%`,
+      left: `${Math.random() * 80 + 10}%`,
+      delay: `${i * 0.5}s`
+    })));
+  }, []);
 
   useGSAP(() => {
     // Hero Animations
@@ -151,11 +161,11 @@ export default function LandingPage() {
                     <div className="data-viz-container">
                         <div className="scan-line"></div>
                         <div className="data-points">
-                            {[...Array(6)].map((_, i) => (
+                            {dataPoints.map((point, i) => (
                                 <div key={i} className="data-point" style={{
-                                    top: `${Math.random() * 80 + 10}%`,
-                                    left: `${Math.random() * 80 + 10}%`,
-                                    animationDelay: `${i * 0.5}s`
+                                    top: point.top,
+                                    left: point.left,
+                                    animationDelay: point.delay
                                 }}>
                                     <div className="pulse-ring"></div>
                                 </div>
