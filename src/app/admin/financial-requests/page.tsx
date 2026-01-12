@@ -1,13 +1,23 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Search, 
+  Plus,
+  Filter,
+  MoreHorizontal,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Eye,
+  FileText,
+  DollarSign,
+  Users,
+  Calendar,
+  ExternalLink,
+  AlertTriangle,
+} from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,439 +29,338 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress"; // Fixed import
-import {
-  Search,
-  Filter,
-  MoreHorizontal,
-  CheckCircle2,
-  XCircle,
-  Eye,
-  HandCoins,
-  TrendingUp,
-  AlertCircle,
-  Clock,
-  FileText,
-  DollarSign,
-  Calendar,
-} from "lucide-react";
-import SpotlightCard from "@/components/reactbits/SpotlightCard";
-import SplitText from "@/components/reactbits/SplitText";
+import CountUp from "@/components/reactbits/CountUp";
 
-// Mock Data
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+};
+
+// Mock data
 const financialRequests = [
   {
     id: "FR-001",
-    title: "Urgent Heart Surgery Support",
-    patientName: "Rahim Uddin",
-    category: "Surgery",
+    title: "Kidney Transplant Surgery for Abdul",
+    patientName: "Abdul Rahman",
+    condition: "Kidney Failure",
     amountNeeded: 500000,
-    amountRaised: 325000,
+    amountRaised: 324500,
     currency: "BDT",
-    deadline: "2026-02-15",
     status: "fundraising",
-    urgency: "critical",
-    hospital: "National Heart Foundation",
-    description: "My father requires urgent bypass surgery. We have gathered 60% of the funds but need support for the rest.",
-    documents: ["Hospital Bill", "Angiogram Report", "NID Copy"],
-    createdAt: "2026-01-05",
+    daysLeft: 23,
+    donors: 156,
+    location: "Dhaka, Bangladesh",
+    createdAt: "2026-01-05T10:00:00",
+    documents: 4,
+    image: true,
   },
   {
     id: "FR-002",
-    title: "Kidney Transplant Fund",
-    patientName: "Fatema Begum",
-    category: "Transplant",
-    amountNeeded: 1200000,
-    amountRaised: 0,
+    title: "Heart Surgery for Baby Fatima",
+    patientName: "Fatima Begum",
+    condition: "Congenital Heart Defect",
+    amountNeeded: 800000,
+    amountRaised: 650000,
     currency: "BDT",
-    deadline: "2026-03-01",
-    status: "pending",
-    urgency: "urgent",
-    hospital: "Kidney Foundation",
-    description: "Seeking financial aid for kidney transplant. Mother of three, sole earner of the family.",
-    documents: ["Doctor Recommendation", "Income Certificate"],
-    createdAt: "2026-01-10",
+    status: "fundraising",
+    daysLeft: 15,
+    donors: 289,
+    location: "Chattogram, Bangladesh",
+    createdAt: "2026-01-02T14:30:00",
+    documents: 6,
+    image: true,
   },
   {
     id: "FR-003",
-    title: "Chemotherapy Cycle 1",
-    patientName: "Sujit Kumar",
-    category: "Cancer Treatment",
-    amountNeeded: 80000,
-    amountRaised: 80000,
+    title: "Cancer Treatment Fund",
+    patientName: "Mohammad Hasan",
+    condition: "Leukemia",
+    amountNeeded: 1200000,
+    amountRaised: 450000,
     currency: "BDT",
-    deadline: "2026-01-20",
-    status: "completed",
-    urgency: "high",
-    hospital: "Delta Hospital",
-    description: "First cycle of chemotherapy for lung cancer diagnosis.",
-    documents: ["Biopsy Report", "Hospital Estimate"],
-    createdAt: "2025-12-28",
+    status: "pending",
+    daysLeft: 0,
+    donors: 0,
+    location: "Sylhet, Bangladesh",
+    createdAt: "2026-01-11T09:15:00",
+    documents: 3,
+    image: false,
   },
   {
     id: "FR-004",
-    title: "Accident Emergency Care",
-    patientName: "Unknown (Road Victim)",
-    category: "Emergency",
-    amountNeeded: 50000,
-    amountRaised: 12000,
-    currency: "BDT",
-    deadline: "2026-01-14",
-    status: "fundraising",
-    urgency: "critical",
-    hospital: "DMCH",
-    description: "Emergency fund for road accident victim currently in ICU. Identity verification in progress.",
-    documents: ["Police Report", "Hospital Admission"],
-    createdAt: "2026-01-11",
-  },
-  {
-    id: "FR-005",
-    title: "Thalassemia Medication",
-    patientName: "Anika Tabassum",
-    category: "Medication",
-    amountNeeded: 15000,
-    amountRaised: 15000,
-    currency: "BDT",
-    deadline: "2026-01-10",
-    status: "approved",
-    urgency: "medium",
-    hospital: "Thalassemia Center",
-    description: "Monthly medication support for 8-year-old child.",
-    documents: ["Prescription", "Birth Certificate"],
-    createdAt: "2026-01-08",
+    title: "Accident Recovery Support",
+    patientName: "Priya Sharma",
+    condition: "Multiple Fractures",
+    amountNeeded: 250000,
+    amountRaised: 250000,
+    currency: "INR",
+    status: "completed",
+    daysLeft: 0,
+    donors: 87,
+    location: "Kolkata, India",
+    createdAt: "2025-12-20T16:45:00",
+    documents: 5,
+    image: true,
   },
 ];
 
-// Helper functions for styling
-const getStatusColor = (status: string) => {
+const stats = [
+  { label: 'Total Requests', value: 342, gradient: 'from-blue-500 to-cyan-400' },
+  { label: 'Under Review', value: 28, gradient: 'from-amber-500 to-orange-400' },
+  { label: 'Fundraising', value: 156, gradient: 'from-emerald-500 to-teal-400' },
+  { label: 'Total Raised', value: 12500000, prefix: '৳', gradient: 'from-violet-500 to-purple-500' },
+];
+
+const getStatusStyles = (status: string) => {
   switch (status) {
-    case "pending":
-      return "bg-warning/10 text-warning border-warning/30";
-    case "approved":
-      return "bg-blue-500/10 text-blue-500 border-blue-500/30";
-    case "fundraising":
-      return "bg-primary/10 text-primary border-primary/30";
-    case "completed":
-      return "bg-success/10 text-success border-success/30";
-    case "rejected":
-      return "bg-destructive/10 text-destructive border-destructive/30";
-    default:
-      return "bg-muted text-muted-foreground";
+    case "pending": return "bg-amber-500/10 text-amber-500 border-amber-500/30";
+    case "under_review": return "bg-blue-500/10 text-blue-500 border-blue-500/30";
+    case "fundraising": return "bg-emerald-500/10 text-emerald-500 border-emerald-500/30";
+    case "completed": return "bg-violet-500/10 text-violet-500 border-violet-500/30";
+    case "rejected": return "bg-rose-500/10 text-rose-500 border-rose-500/30";
+    default: return "bg-secondary text-foreground";
   }
 };
 
-const getProgressColor = (percent: number) => {
-  if (percent >= 100) return "bg-success";
-  if (percent >= 50) return "bg-primary";
-  return "bg-warning";
-};
-
 export default function FinancialRequestsPage() {
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
-  const [filterStatus, setFilterStatus] = useState("all");
-
-  const filteredRequests = financialRequests.filter(
-    (req) => filterStatus === "all" || req.status === filterStatus
-  );
-
-  const stats = [
-    {
-      title: "Total Funds Needed",
-      value: "৳1.84M",
-      sub: "Across all active requests",
-      icon: DollarSign,
-    },
-    {
-      title: "Funds Raised",
-      value: "৳417k",
-      sub: "22% of total goal",
-      icon: TrendingUp,
-    },
-    {
-      title: "Active Campaigns",
-      value: "12",
-      sub: "Running now",
-      icon: HandCoins,
-    },
-    {
-      title: "Pending Approval",
-      value: "5",
-      sub: "Requires verification",
-      icon: AlertCircle,
-    },
-  ];
-
   return (
-    <div className="space-y-8 p-1">
-      {/* Header Section */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div className="space-y-1">
-          <SplitText
-            text="Financial Requests"
-            className="font-display text-4xl font-bold tracking-tight"
-            delay={0.1}
-          />
-          <p className="text-muted-foreground animate-fade-in [animation-delay:400ms]">
-            Manage fundraising campaigns, verify documents, and track donations.
+    <motion.div 
+      className="space-y-8"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      {/* Header */}
+      <motion.div variants={itemVariants} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="font-display text-5xl font-bold tracking-tight bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 bg-clip-text text-transparent">
+            Financial Requests
+          </h1>
+          <p className="text-muted-foreground mt-2 text-lg">
+            Review and manage patient financial assistance requests
           </p>
         </div>
-        <Button className="font-semibold shadow-lg shadow-primary/20 animate-fade-in [animation-delay:500ms]">
-          <HandCoins className="mr-2 h-4 w-4" />
-          Create Verified Request
+        <div className="flex items-center gap-3">
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-medium shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-shadow flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            New Request
+          </motion.button>
+        </div>
+      </motion.div>
+
+      {/* Stats */}
+      <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat) => (
+          <motion.div
+            key={stat.label}
+            whileHover={{ y: -2 }}
+            className="relative overflow-hidden rounded-2xl border border-border/50 bg-card/30 backdrop-blur-sm p-5"
+          >
+            <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl ${stat.gradient} opacity-10 blur-2xl`} />
+            <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+            <p className="text-3xl font-bold font-display mt-1">
+              {stat.prefix}<CountUp to={stat.value} duration={2} />
+            </p>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Filters */}
+      <motion.div variants={itemVariants} className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-1 items-center gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by title, patient, condition..."
+              className="pl-11 h-12 rounded-xl bg-card/50 border-border/50"
+            />
+          </div>
+          <Select defaultValue="all">
+            <SelectTrigger className="w-[130px] h-12 rounded-xl bg-card/50 border-border/50">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="under_review">Under Review</SelectItem>
+              <SelectItem value="fundraising">Fundraising</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select defaultValue="all">
+            <SelectTrigger className="w-[130px] h-12 rounded-xl bg-card/50 border-border/50">
+              <SelectValue placeholder="Amount" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Amounts</SelectItem>
+              <SelectItem value="0-100000">Under ৳1 Lakh</SelectItem>
+              <SelectItem value="100000-500000">৳1-5 Lakh</SelectItem>
+              <SelectItem value="500000+">Above ৳5 Lakh</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl">
+          <Filter className="h-4 w-4" />
         </Button>
-      </div>
+      </motion.div>
 
-      {/* Metrics Grid using SpotlightCard */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 animate-fade-in [animation-delay:600ms]">
-        {stats.map((stat, i) => {
-          const Icon = stat.icon;
-          return (
-            <SpotlightCard
-              key={i}
-              className="glass-card border-border/50 p-6"
-              spotlightColor="rgba(220, 38, 38, 0.15)"
-            >
-              <div className="flex items-center justify-between">
-                <div className="rounded-lg bg-primary/10 p-2">
-                  <Icon className="h-5 w-5 text-primary" />
-                </div>
-                {i === 1 && <Badge variant="secondary" className="text-success bg-success/10 border-success/20">+12%</Badge>}
-              </div>
-              <div className="mt-4">
-                <p className="text-3xl font-bold font-display tracking-tight">{stat.value}</p>
-                <p className="text-sm text-muted-foreground mt-1">{stat.title}</p>
-              </div>
-              <div className="mt-4 h-1 w-full rounded-full bg-secondary">
-                <div 
-                    className="h-full rounded-full bg-primary transition-all duration-1000 ease-out" 
-                    style={{ width: `${(i + 2) * 15}%` }} 
-                />
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">{stat.sub}</p>
-            </SpotlightCard>
-          );
-        })}
-      </div>
-
-      {/* Main Content Area */}
-      <Card className="glass-card border-border/50 overflow-hidden animate-slide-up [animation-delay:800ms]">
-        <CardHeader className="border-b border-border/50 bg-secondary/5 px-6 py-4">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <CardTitle className="font-display flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              Campaign Management
-            </CardTitle>
+      {/* Request Cards */}
+      <motion.div variants={itemVariants} className="space-y-4">
+        <AnimatePresence>
+          {financialRequests.map((request, i) => {
+            const progress = (request.amountRaised / request.amountNeeded) * 100;
             
-            {/* Filters */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search campaigns..."
-                  className="w-[200px] bg-background/50 pl-9 transition-all focus:w-[250px]"
-                />
-              </div>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-[140px] bg-background/50">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="fundraising">Fundraising</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button variant="outline" size="icon" className="bg-background/50">
-                <Filter className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-secondary/30">
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Campaign Details</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Fundraising Progress</TableHead>
-                <TableHead>Deadline</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredRequests.map((req) => {
-                const progress = Math.round((req.amountRaised / req.amountNeeded) * 100);
-                return (
-                  <TableRow key={req.id} className="group transition-colors hover:bg-secondary/30">
-                    <TableCell className="max-w-[300px]">
-                      <div className="flex flex-col gap-1">
-                        <span className="font-semibold font-display text-base group-hover:text-primary transition-colors">
-                          {req.title}
+            return (
+              <motion.div
+                key={request.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ delay: i * 0.1 }}
+                whileHover={{ y: -2 }}
+                className="relative overflow-hidden rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-6"
+              >
+                <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+                  {/* Progress Circle */}
+                  <div className="relative w-24 h-24 flex-shrink-0">
+                    <svg className="w-24 h-24 transform -rotate-90">
+                      <circle
+                        cx="48" cy="48" r="42"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        fill="none"
+                        className="text-secondary"
+                      />
+                      <circle
+                        cx="48" cy="48" r="42"
+                        stroke="url(#progressGradient)"
+                        strokeWidth="8"
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeDasharray={`${progress * 2.64} 264`}
+                      />
+                      <defs>
+                        <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#10b981" />
+                          <stop offset="100%" stopColor="#14b8a6" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-lg font-bold">{Math.round(progress)}%</span>
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-lg truncate">{request.title}</h3>
+                          <Badge variant="outline" className={getStatusStyles(request.status) + ' capitalize'}>
+                            {request.status.replace('_', ' ')}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {request.patientName} • {request.condition}
+                        </p>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg flex-shrink-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem><Eye className="mr-2 h-4 w-4" />View Details</DropdownMenuItem>
+                          <DropdownMenuItem><FileText className="mr-2 h-4 w-4" />View Documents ({request.documents})</DropdownMenuItem>
+                          <DropdownMenuItem><ExternalLink className="mr-2 h-4 w-4" />Open Public Page</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-emerald-500"><CheckCircle2 className="mr-2 h-4 w-4" />Approve</DropdownMenuItem>
+                          <DropdownMenuItem className="text-rose-500"><XCircle className="mr-2 h-4 w-4" />Reject</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    {/* Amount Progress */}
+                    <div className="mt-4">
+                      <div className="flex items-baseline justify-between mb-2">
+                        <span className="text-2xl font-bold text-emerald-500">
+                          {request.currency} {request.amountRaised.toLocaleString()}
                         </span>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span className="truncate">{req.patientName}</span>
-                          <span>•</span>
-                          <span className="text-xs border px-1.5 rounded">{req.id}</span>
-                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          of {request.currency} {request.amountNeeded.toLocaleString()}
+                        </span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="font-normal bg-background/50 text-muted-foreground">
-                        {req.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="w-[250px]">
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="font-semibold">৳{req.amountRaised.toLocaleString()}</span>
-                          <span className="text-muted-foreground">of ৳{req.amountNeeded.toLocaleString()}</span>
-                        </div>
-                        <Progress value={progress} className={`h-2 ${getProgressColor(progress).replace("bg-", "text-")}`} />
-                        <p className="text-xs text-muted-foreground text-right">{progress}% Funded</p>
+                      <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${progress}%` }}
+                          transition={{ duration: 1, delay: 0.5 }}
+                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-500"
+                        />
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <Calendar className="h-3.5 w-3.5" />
-                        {new Date(req.deadline).toLocaleDateString()}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={`capitalize border ${getStatusColor(req.status)}`}
-                      >
-                        {req.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
-                          onClick={() => setSelectedRequest(req)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setSelectedRequest(req)}>
-                              View Documents
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>Edit Request</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            {req.status === 'pending' && (
-                                <>
-                                    <DropdownMenuItem className="text-success">Approve Campaign</DropdownMenuItem>
-                                    <DropdownMenuItem className="text-destructive">Reject Request</DropdownMenuItem>
-                                </>
-                            )}
-                            {req.status !== 'pending' && (
-                                <DropdownMenuItem className="text-destructive">Archive</DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-      
-      {/* Details Dialog */}
-      <Dialog open={!!selectedRequest} onOpenChange={(open) => !open && setSelectedRequest(null)}>
-        <DialogContent className="max-w-2xl glass-card border-border">
-          <DialogHeader>
-            <DialogTitle className="font-display text-2xl">{selectedRequest?.title}</DialogTitle>
-            <DialogDescription>
-                Request ID: {selectedRequest?.id} • Created on {selectedRequest?.createdAt}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-6 py-4">
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                    <h4 className="text-sm font-medium text-muted-foreground">Patient Name</h4>
-                    <p className="font-semibold">{selectedRequest?.patientName}</p>
-                </div>
-                <div className="space-y-1">
-                    <h4 className="text-sm font-medium text-muted-foreground">Hospital</h4>
-                    <p className="font-semibold">{selectedRequest?.hospital}</p>
-                </div>
-                <div className="space-y-1">
-                    <h4 className="text-sm font-medium text-muted-foreground">Amount Needed</h4>
-                    <p className="font-semibold text-primary">৳{selectedRequest?.amountNeeded.toLocaleString()}</p>
-                </div>
-                <div className="space-y-1">
-                    <h4 className="text-sm font-medium text-muted-foreground">Urgency</h4>
-                     <Badge variant="outline" className="capitalize">{selectedRequest?.urgency}</Badge>
-                </div>
-            </div>
-            
-            <div className="space-y-2">
-                <h4 className="text-sm font-medium text-muted-foreground">Story</h4>
-                <div className="rounded-lg bg-secondary/30 p-4 text-sm">
-                    {selectedRequest?.description}
-                </div>
-            </div>
+                    </div>
 
-            <div className="space-y-2">
-                <h4 className="text-sm font-medium text-muted-foreground">Attached Documents</h4>
-                <div className="flex flex-wrap gap-2">
-                    {selectedRequest?.documents.map((doc: string) => (
-                        <div key={doc} className="flex items-center gap-2 rounded-md border border-border bg-background/50 px-3 py-2 text-sm">
-                            <FileText className="h-4 w-4 text-primary" />
-                            {doc}
+                    {/* Meta */}
+                    <div className="flex items-center gap-6 mt-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Users className="w-4 h-4" />
+                        <span>{request.donors} donors</span>
+                      </div>
+                      {request.daysLeft > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          <span>{request.daysLeft} days left</span>
                         </div>
-                    ))}
+                      )}
+                      <div className="flex items-center gap-1">
+                        <FileText className="w-4 h-4" />
+                        <span>{request.documents} documents</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        <span>{new Date(request.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-            </div>
-          </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </motion.div>
 
-          <div className="flex justify-end gap-3 border-t border-border/50 pt-4">
-            <Button variant="outline" onClick={() => setSelectedRequest(null)}>Close</Button>
-            {selectedRequest?.status === "pending" && (
-                <>
-                    <Button variant="destructive">Reject</Button>
-                    <Button className="bg-success hover:bg-success/90 text-white">Approve Campaign</Button>
-                </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+      {/* Pagination */}
+      <motion.div variants={itemVariants} className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          Showing 1-4 of 342 requests
+        </p>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" disabled className="rounded-lg">
+            Previous
+          </Button>
+          <Button variant="outline" size="sm" className="rounded-lg">
+            Next
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
