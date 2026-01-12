@@ -7,7 +7,6 @@ import {
   Plus,
   Filter,
   MoreHorizontal,
-  Phone,
   MapPin,
   Clock,
   CheckCircle2,
@@ -18,6 +17,7 @@ import {
   Zap,
   ArrowUpDown,
   Trash2,
+  ExternalLink,
 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,11 +37,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import CountUp from "@/components/reactbits/CountUp";
-import { approveRequest, rejectRequest, deleteRequest } from './actions';
+import { approveRequest, rejectRequest, deleteRequest, updateRequest, createRequest } from './actions';
 import { toast } from 'sonner';
-import { RequestDetailSheet } from './RequestDetailSheet';
+import RequestDetailSheet from './RequestDetailSheet';
+import CreateRequestSheet from './CreateRequestSheet';
 
 // Animation variants
+// ... (keep variants same)
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
@@ -92,6 +94,7 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   // Client-side filtering
   const filteredRequests = requests.filter(req => {
@@ -106,30 +109,48 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
     return matchesType && matchesUrgency && matchesStatus && matchesSearch;
   });
 
-  const handleAction = async (action: 'approve' | 'reject' | 'delete', id: string) => {
-    try {
-        if (action === 'approve') await approveRequest(id);
-        if (action === 'reject') await rejectRequest(id);
-        if (action === 'delete') await deleteRequest(id);
-        
-        toast.success(`Request ${action}d successfully`);
-        // Optimistic update or waiting for revalidate (router.refresh() handled by parent or auto)
-        // Since we revalidatePath in server action, next render should have new data.
-        // However, we are controlling state 'requests' initialized with props. 
-        // We should really depend on router refresh updating the props, OR manually update local state.
-        // For simplicity, let's assume router.refresh() works or we update local state.
-        // The correct way in Client Component with Server Action + revalidation is:
-        // Use router.refresh() OR just update local state if we want instant feedback.
-        // Let's update local state to reflect change immediately (Optimistic UI).
-        
-        setRequests(prev => prev.map(r => {
-            if (r.id !== id) return r;
-            if (action === 'delete') return null; // Filter out later
-            return { ...r, status: action === 'approve' ? 'approved' : 'rejected' };
-        }).filter(Boolean) as any[]);
+  const handleCreate = async (data: any) => {
+      try {
+          await createRequest(data);
+          toast.success("Request created successfully");
+          // Re-fetch or optimistic update? Revalidation handles it on next load, 
+          // but for instant feedback we might want to append to 'requests'.
+          // Since we don't return the full created object easily (unless we fetch it), 
+          // let's rely on revalidatePath for now or we could add a "Refresh" logic.
+          // For now, simple success toast.
+      } catch (error: any) {
+          toast.error("Failed to create request: " + error.message);
+      }
+  };
 
-    } catch (err: any) {
-        toast.error(err.message);
+  const handleAction = async (action: string, id: string, data?: any) => {
+    // setIsPending(true);
+    try {
+      if (action === 'approve') {
+        await approveRequest(id, data);
+        toast.success('Request approved successfully');
+      } else if (action === 'reject') {
+        await rejectRequest(id, data);
+        toast.success('Request rejected');
+      } else if (action === 'delete') {
+        await deleteRequest(id);
+        toast.success('Request deleted');
+      } else if (action === 'update') {
+          await updateRequest(id, data);
+          toast.success('Request updated');
+      }
+      setIsDetailOpen(false);
+      
+      // Optimistic update
+      setRequests(prev => prev.map(r => {
+        if (r.id !== id) return r;
+        if (action === 'delete') return null;
+        if (action === 'update' && data) return { ...r, ...data };
+        return { ...r, status: action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : r.status };
+      }).filter(Boolean) as any[]);
+
+    } catch (error: any) {
+      toast.error('Failed to update request: ' + error.message);
     }
   };
 
@@ -154,6 +175,7 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
           <motion.button 
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
+            onClick={() => setIsCreateOpen(true)}
             className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 text-white text-sm font-medium shadow-lg shadow-rose-500/25 hover:shadow-rose-500/40 transition-shadow flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
@@ -238,111 +260,130 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
       </motion.div>
 
       {/* Request Cards */}
-      <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-2">
+      <motion.div variants={itemVariants} className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <AnimatePresence>
           {filteredRequests.map((request, i) => {
             const urgencyStyles = getUrgencyStyles(request.urgency);
-            console.log(request.profiles); // debug
+            
+            // Generate Google Maps search URL
+            const mapsQuery = encodeURIComponent(`${request.hospital || ''} ${request.city || ''}`);
+            const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
             
             return (
               <motion.div
                 key={request.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ delay: i * 0.1 }}
-                whileHover={{ y: -4 }}
-                className="relative overflow-hidden rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-6"
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ delay: i * 0.08, duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                whileHover={{ y: -6, transition: { duration: 0.2 } }}
+                className="group relative overflow-hidden rounded-3xl border border-border/30 bg-gradient-to-br from-card/80 via-card/60 to-card/40 backdrop-blur-xl shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-500"
               >
-                {/* Urgency indicator */}
-                {request.urgency === 'critical' && (
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-red-500" />
-                )}
-                {request.urgency === 'urgent' && (
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-500" />
-                )}
+                {/* Ambient Glow Effect */}
+                <div className={`absolute -top-20 -right-20 w-40 h-40 rounded-full blur-3xl opacity-20 transition-opacity duration-500 group-hover:opacity-40 pointer-events-none ${
+                  request.urgency === 'critical' ? 'bg-rose-500' : 
+                  request.urgency === 'urgent' ? 'bg-amber-500' : 'bg-emerald-500'
+                }`} />
 
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    {/* Blood Group Badge */}
-                    <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${bloodGroupColors[request.blood_group]} flex items-center justify-center shadow-lg`}>
-                      <span className="text-xl font-bold text-white">{request.blood_group}</span>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-lg">{request.patient_name}</h3>
-                        <Badge className={urgencyStyles.bg + ' ' + urgencyStyles.text + ' capitalize text-xs'}>
-                          {request.urgency === 'critical' && <Zap className="w-3 h-3 mr-1" />}
-                          {request.urgency}
-                        </Badge>
+                {/* Urgency Strip - Top */}
+                <div className={`h-1.5 w-full ${
+                  request.urgency === 'critical' ? 'bg-gradient-to-r from-rose-600 via-red-500 to-rose-600' : 
+                  request.urgency === 'urgent' ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500' : 
+                  'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500'
+                }`} />
+
+                <div className="p-5">
+                  {/* Header Row */}
+                  <div className="flex items-start justify-between mb-5">
+                    <div className="flex items-center gap-4">
+                      {/* Blood Group - Refined Badge */}
+                      <div className={`relative w-14 h-14 rounded-2xl bg-gradient-to-br ${bloodGroupColors[request.blood_group] || 'from-gray-500 to-gray-600'} flex items-center justify-center shadow-lg shadow-primary/10 ring-2 ring-white/10`}>
+                        <span className="text-lg font-bold text-white tracking-tight">{request.blood_group}</span>
+                        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-card border-2 border-background flex items-center justify-center">
+                          <span className="text-[10px] font-bold text-foreground">{request.units}</span>
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {request.units} unit{request.units > 1 ? 's' : ''} needed • {request.hospital}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-base truncate">{request.patient_name}</h3>
+                          <Badge className={`${urgencyStyles.bg} ${urgencyStyles.text} capitalize text-[10px] px-2 py-0.5 font-medium rounded-full`}>
+                            {request.urgency === 'critical' && <Zap className="w-2.5 h-2.5 mr-1" />}
+                            {request.urgency}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-0.5 truncate">
+                          {request.hospital}
+                        </p>
+                      </div>
                     </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                        <DropdownMenuItem onClick={() => {
+                          setSelectedRequest(request);
+                          setIsDetailOpen(true);
+                        }} className="rounded-lg">
+                          <Eye className="mr-2 h-4 w-4" />View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          className="text-emerald-500 focus:text-emerald-500 cursor-pointer rounded-lg"
+                          onClick={() => handleAction('approve', request.id)}
+                        >
+                          <CheckCircle2 className="mr-2 h-4 w-4" />Approve
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-amber-500 focus:text-amber-500 cursor-pointer rounded-lg"
+                           onClick={() => handleAction('reject', request.id)}
+                        >
+                          <XCircle className="mr-2 h-4 w-4" />Reject
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-rose-500 focus:text-rose-500 cursor-pointer rounded-lg"
+                          onClick={() => handleAction('delete', request.id)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => {
-                        setSelectedRequest(request);
-                        setIsDetailOpen(true);
-                      }}>
-                        <Eye className="mr-2 h-4 w-4" />View Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem><Phone className="mr-2 h-4 w-4" />Contact</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        className="text-emerald-500 focus:text-emerald-500 cursor-pointer"
-                        onClick={() => handleAction('approve', request.id)}
-                      >
-                        <CheckCircle2 className="mr-2 h-4 w-4" />Approve
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className="text-amber-500 focus:text-amber-500 cursor-pointer"
-                         onClick={() => handleAction('reject', request.id)}
-                      >
-                        <XCircle className="mr-2 h-4 w-4" />Reject
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className="text-rose-500 focus:text-rose-500 cursor-pointer"
-                        onClick={() => handleAction('delete', request.id)}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="w-4 h-4" />
-                    <span>{request.city || request.hospital}</span> {/* Use city if available */}
-                    <Badge variant="outline" className="text-xs">2.4 km</Badge> {/* Mock distance for now */}
+                  {/* Info Row */}
+                  <div className="flex items-center gap-3 mb-5">
+                    <a 
+                      href={mapsUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary text-xs text-muted-foreground hover:text-foreground transition-colors group/map"
+                    >
+                      <MapPin className="w-3.5 h-3.5 group-hover/map:text-primary transition-colors" />
+                      <span className="max-w-[100px] truncate">{request.city || 'View Location'}</span>
+                    </a>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/50 text-xs text-muted-foreground">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>{new Date(request.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="w-4 h-4" />
-                    <span>{new Date(request.created_at).toLocaleDateString()}</span>
-                  </div>
-                </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-border/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-medium">
-                      {request.profiles?.full_name?.split(' ').map((n: string) => n[0]).join('') || '?'}
+                  {/* Footer Row */}
+                  <div className="flex items-center justify-between pt-4 border-t border-border/30">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center text-xs font-semibold ring-1 ring-border/50">
+                        {request.profiles?.full_name?.split(' ').map((n: string) => n[0]).join('') || '?'}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{request.profiles?.full_name || 'Anonymous'}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{request.contact_number}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">{request.profiles?.full_name || 'Anonymous'}</p>
-                      <p className="text-xs text-muted-foreground">{request.contact_number}</p>
-                    </div>
+                    <Badge variant="outline" className={`${getStatusStyles(request.status)} capitalize text-[10px] px-2.5 py-1 font-medium`}>
+                      {request.status}
+                    </Badge>
                   </div>
-                  <Badge variant="outline" className={getStatusStyles(request.status) + ' capitalize'}>
-                    {request.status}
-                  </Badge>
                 </div>
               </motion.div>
             );
@@ -367,9 +408,15 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
 
       <RequestDetailSheet 
         request={selectedRequest}
-        open={isDetailOpen}
+        isOpen={isDetailOpen}
         onOpenChange={setIsDetailOpen}
-        onAction={handleAction}
+        onAction={(action, data) => selectedRequest && handleAction(action, selectedRequest.id, data)}
+      />
+
+      <CreateRequestSheet 
+        isOpen={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        onCreate={handleCreate}
       />
     </motion.div>
   );

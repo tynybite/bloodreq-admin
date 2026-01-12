@@ -11,13 +11,13 @@ export default async function DashboardPage() {
     { count: totalRequests },
     { count: totalDonations },
     { count: pendingRequests },
-    // { count: pendingDonations } // If donations have a status
+    { count: activeDonors }
   ] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('blood_requests').select('*', { count: 'exact', head: true }),
     supabase.from('blood_donations').select('*', { count: 'exact', head: true }),
     supabase.from('blood_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-    // supabase.from('blood_donations').select('*', { count: 'exact', head: true }).eq('status', 'offered'), // Assuming status is offered/accepted/completed
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'donor').eq('status', 'active'),
   ]);
   
   // Pending donations count (separate query to avoid error if table structure varies)
@@ -30,32 +30,37 @@ export default async function DashboardPage() {
   // This is a bit tricky with Supabase basic queries, so we'll fetch latest 5 of each and interleave
   const { data: recentRequests } = await supabase
     .from('blood_requests')
-    .select('patient_name, blood_group, created_at, status')
+    .select('id, patient_name, blood_group, created_at, status')
     .order('created_at', { ascending: false })
     .limit(5);
 
   const { data: recentDonations } = await supabase
     .from('blood_donations')
-    .select('*, profiles(full_name)')
+    .select('id, created_at, status, profiles(full_name)')
     .order('created_at', { ascending: false })
     .limit(5);
 
   // Normalize Activity
   const activity = [
     ...(recentRequests || []).map(r => ({
+      id: r.id,
       type: 'blood_request',
       title: `New ${r.blood_group} request for ${r.patient_name}`,
       time: new Date(r.created_at).toLocaleDateString(), // simplified
       created_at: new Date(r.created_at),
       status: r.status
     })),
-    ...(recentDonations || []).map(d => ({
-      type: 'donation',
-      title: `Donation offered by ${d.profiles?.full_name || 'Donor'}`,
-      time: new Date(d.created_at).toLocaleDateString(),
-      created_at: new Date(d.created_at),
-      status: d.status
-    }))
+    ...(recentDonations || []).map(d => {
+      const profile = Array.isArray(d.profiles) ? d.profiles[0] : d.profiles;
+      return {
+        id: d.id,
+        type: 'donation',
+        title: `Donation offered by ${profile?.full_name || 'Donor'}`,
+        time: new Date(d.created_at).toLocaleDateString(),
+        created_at: new Date(d.created_at),
+        status: d.status
+      };
+    })
   ].sort((a, b) => b.created_at.getTime() - a.created_at.getTime()).slice(0, 5);
 
   // Blood Type Distribution from View
@@ -76,6 +81,7 @@ export default async function DashboardPage() {
     totalDonations: totalDonations || 0,
     pendingRequests: pendingRequests || 0,
     pendingDonations: pendingDonations || 0,
+    activeDonors: activeDonors || 0,
     recentActivity: activity,
     bloodTypeDistribution
   };

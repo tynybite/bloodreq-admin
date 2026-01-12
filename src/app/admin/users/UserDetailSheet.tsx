@@ -25,9 +25,9 @@ export function UserDetailSheet({ user, open, onOpenChange, onAction }: UserDeta
       <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
         <SheetHeader className="mb-6">
           <div className="flex items-center gap-3 mb-2">
-            <Bage variant="outline" className="uppercase tracking-wider">
+            <Badge variant="outline" className="uppercase tracking-wider">
                {user.role}
-            </Bage>
+            </Badge>
             <Badge className={
               user.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' :
               user.status === 'suspended' ? 'bg-amber-500/10 text-amber-500' :
@@ -146,9 +146,4 @@ export function UserDetailSheet({ user, open, onOpenChange, onAction }: UserDeta
       </SheetContent>
     </Sheet>
   );
-}
-
-// Fix typo helper
-function Bage({children, ...props}: any) {
-    return <Badge {...props}>{children}</Badge>
 }

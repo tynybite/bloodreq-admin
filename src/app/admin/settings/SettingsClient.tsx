@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -13,7 +12,6 @@ import {
   Globe,
   Mail,
   Smartphone,
-  Clock,
   Lock,
   Eye,
   EyeOff,
@@ -29,6 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from 'sonner';
+import { updateSettings } from './actions';
 
 // Animation variants
 const containerVariants = {
@@ -69,26 +69,62 @@ function SettingsSection({ title, description, icon: Icon, gradient, children }:
   );
 }
 
-export default function SettingsPage() {
+export default function SettingsClient({ initialSettings }: { initialSettings: any }) {
   const [showKey, setShowKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [notifications, setNotifications] = useState({
+  
+  // Initialize state from props or defaults
+  const [general, setGeneral] = useState(initialSettings?.general || {
+    platformName: "BloodReq",
+    supportEmail: "support@bloodreq.com",
+    language: "en",
+    timezone: "asia_dhaka"
+  });
+
+  const [notifications, setNotifications] = useState(initialSettings?.notifications || {
     push: true,
     sms: true,
     email: true,
+    radius: "10"
   });
-  const [security, setSecurity] = useState({
+
+  const [security, setSecurity] = useState(initialSettings?.security || {
     twoFactor: false,
     ipRestriction: false,
+    sessionTimeout: "30"
+  });
+  
+  const [appearance, setAppearance] = useState(initialSettings?.appearance || {
+      theme: "light",
+      primaryColor: "#dc2626",
+      enableAnimations: true
+  });
+  
+  const [apiKeys, setApiKeys] = useState(initialSettings?.apiKeys || {
+      supabaseUrl: "",
+      supabaseAnonKey: "",
+      admobAppId: "",
+      facebookAppId: ""
   });
 
   const handleSave = async () => {
     setIsSaving(true);
-    // Simulate API call - in a real app, updates would go to 'settings' table or 'profiles' metadata
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    // toast.success("Settings saved successfully"); // Needs toast import
-    setIsSaving(false);
-    console.log("Settings saved:", { notifications, security });
+    try {
+        const settingsToSave = {
+            general,
+            notifications,
+            security,
+            appearance,
+            apiKeys
+        };
+        await updateSettings(settingsToSave);
+        toast.success("Settings saved successfully");
+    } catch (error) {
+        console.error(error);
+        toast.error("Failed to save settings");
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   return (
@@ -130,16 +166,25 @@ export default function SettingsPage() {
         >
           <div className="space-y-2">
             <Label>Platform Name</Label>
-            <Input defaultValue="BloodReq" className="rounded-xl bg-secondary/50" />
+            <Input 
+                value={general.platformName} 
+                onChange={(e) => setGeneral({...general, platformName: e.target.value})}
+                className="rounded-xl bg-secondary/50" 
+            />
           </div>
           <div className="space-y-2">
             <Label>Support Email</Label>
-            <Input defaultValue="support@bloodreq.com" type="email" className="rounded-xl bg-secondary/50" />
+            <Input 
+                value={general.supportEmail}
+                onChange={(e) => setGeneral({...general, supportEmail: e.target.value})}
+                type="email" 
+                className="rounded-xl bg-secondary/50" 
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Default Language</Label>
-              <Select defaultValue="en">
+              <Select value={general.language} onValueChange={(v) => setGeneral({...general, language: v})}>
                 <SelectTrigger className="rounded-xl bg-secondary/50">
                   <SelectValue />
                 </SelectTrigger>
@@ -153,7 +198,7 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label>Timezone</Label>
-              <Select defaultValue="asia_dhaka">
+              <Select value={general.timezone} onValueChange={(v) => setGeneral({...general, timezone: v})}>
                 <SelectTrigger className="rounded-xl bg-secondary/50">
                   <SelectValue />
                 </SelectTrigger>
@@ -207,7 +252,12 @@ export default function SettingsPage() {
           <div className="space-y-2 pt-4 border-t border-border/50">
             <Label>Default Notification Radius</Label>
             <div className="flex items-center gap-3">
-              <Input type="number" defaultValue="10" className="rounded-xl bg-secondary/50 w-24" />
+              <Input 
+                type="number" 
+                value={notifications.radius} 
+                onChange={(e) => setNotifications({...notifications, radius: e.target.value})}
+                className="rounded-xl bg-secondary/50 w-24" 
+              />
               <span className="text-muted-foreground">km</span>
             </div>
           </div>
@@ -243,7 +293,12 @@ export default function SettingsPage() {
           <div className="space-y-2 pt-4 border-t border-border/50">
             <Label>Session Timeout</Label>
             <div className="flex items-center gap-3">
-              <Input type="number" defaultValue="30" className="rounded-xl bg-secondary/50 w-24" />
+              <Input 
+                type="number" 
+                value={security.sessionTimeout} 
+                onChange={(e) => setSecurity({...security, sessionTimeout: e.target.value})}
+                className="rounded-xl bg-secondary/50 w-24" 
+              />
               <span className="text-muted-foreground">minutes</span>
             </div>
           </div>
@@ -258,7 +313,7 @@ export default function SettingsPage() {
         >
           <div className="space-y-2">
             <Label>Default Theme</Label>
-            <Select defaultValue="light">
+            <Select value={appearance.theme} onValueChange={(v) => setAppearance({...appearance, theme: v})}>
               <SelectTrigger className="rounded-xl bg-secondary/50">
                 <SelectValue />
               </SelectTrigger>
@@ -272,8 +327,16 @@ export default function SettingsPage() {
           <div className="space-y-2">
             <Label>Primary Color</Label>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary border cursor-pointer" />
-              <Input type="text" defaultValue="#dc2626" className="rounded-xl bg-secondary/50 flex-1 font-mono" />
+              <div 
+                className="w-10 h-10 rounded-xl border cursor-pointer" 
+                style={{ backgroundColor: appearance.primaryColor }}
+              />
+              <Input 
+                type="text" 
+                value={appearance.primaryColor} 
+                onChange={(e) => setAppearance({...appearance, primaryColor: e.target.value})}
+                className="rounded-xl bg-secondary/50 flex-1 font-mono" 
+              />
             </div>
           </div>
           <div className="flex items-center justify-between pt-4 border-t border-border/50">
@@ -281,7 +344,10 @@ export default function SettingsPage() {
               <p className="font-medium">Enable Animations</p>
               <p className="text-sm text-muted-foreground">Motion effects and transitions</p>
             </div>
-            <Switch defaultChecked />
+            <Switch 
+                checked={appearance.enableAnimations} 
+                onCheckedChange={(v) => setAppearance({...appearance, enableAnimations: v})}
+            />
           </div>
         </SettingsSection>
       </div>
@@ -296,13 +362,20 @@ export default function SettingsPage() {
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-2">
             <Label>Supabase URL</Label>
-            <Input placeholder="https://xxx.supabase.co" className="rounded-xl bg-secondary/50" />
+            <Input 
+                value={apiKeys.supabaseUrl} 
+                onChange={(e) => setApiKeys({...apiKeys, supabaseUrl: e.target.value})}
+                placeholder="https://xxx.supabase.co" 
+                className="rounded-xl bg-secondary/50" 
+            />
           </div>
           <div className="space-y-2">
             <Label>Supabase Anon Key</Label>
             <div className="relative">
               <Input 
                 type={showKey ? "text" : "password"} 
+                value={apiKeys.supabaseAnonKey} 
+                onChange={(e) => setApiKeys({...apiKeys, supabaseAnonKey: e.target.value})}
                 placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." 
                 className="rounded-xl bg-secondary/50 pr-10" 
               />
@@ -318,11 +391,21 @@ export default function SettingsPage() {
           </div>
           <div className="space-y-2">
             <Label>Google AdMob App ID</Label>
-            <Input placeholder="ca-app-pub-XXXXXXXXXXXXXXXX" className="rounded-xl bg-secondary/50" />
+            <Input 
+                value={apiKeys.admobAppId} 
+                onChange={(e) => setApiKeys({...apiKeys, admobAppId: e.target.value})}
+                placeholder="ca-app-pub-XXXXXXXXXXXXXXXX" 
+                className="rounded-xl bg-secondary/50" 
+            />
           </div>
           <div className="space-y-2">
             <Label>Facebook App ID</Label>
-            <Input placeholder="Enter Facebook App ID" className="rounded-xl bg-secondary/50" />
+            <Input 
+                value={apiKeys.facebookAppId} 
+                onChange={(e) => setApiKeys({...apiKeys, facebookAppId: e.target.value})}
+                placeholder="Enter Facebook App ID" 
+                className="rounded-xl bg-secondary/50" 
+            />
           </div>
         </div>
       </SettingsSection>

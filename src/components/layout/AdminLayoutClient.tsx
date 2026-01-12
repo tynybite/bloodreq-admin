@@ -1,7 +1,8 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from 'react';
-import { Sidebar, Header } from "@/components/layout";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { Header } from "@/components/layout/Header";
 import { SidebarProvider, useSidebar } from "@/components/layout/SidebarContext";
 import BloodCellsBackground from "@/components/reactbits/BloodCellsBackground";
 import { useRouter } from "next/navigation";

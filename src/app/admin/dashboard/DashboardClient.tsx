@@ -38,17 +38,22 @@ interface DashboardData {
     totalDonations: number;
     pendingRequests: number;
     pendingDonations: number;
+    activeDonors: number;
     recentActivity: any[]; // refine type later
     bloodTypeDistribution: { type: string; count: number; percentage: number }[];
 }
 
+import { useRouter } from 'next/navigation';
+
 export default function DashboardClient({ data }: { data: DashboardData }) {
+  const router = useRouter();
+
   // Construct metrics from props
   const metrics = [
     { 
       label: 'Total Users', 
       value: data.totalUsers, 
-      change: 12.5, // TODO: Calculate change
+      change: 0, 
       icon: Users,
       gradient: 'from-blue-500 to-cyan-400',
       shadowColor: 'shadow-blue-500/25'
@@ -56,7 +61,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     { 
       label: 'Blood Requests', 
       value: data.totalRequests, 
-      change: 8.2, 
+      change: 0, 
       icon: Droplet,
       gradient: 'from-rose-500 to-pink-400',
       shadowColor: 'shadow-rose-500/25'
@@ -64,26 +69,37 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     { 
       label: 'Donations', 
       value: data.totalDonations, 
-      change: -3.1, 
+      change: 0, 
       icon: Heart,
       gradient: 'from-amber-500 to-orange-400',
       shadowColor: 'shadow-amber-500/25'
     },
     { 
-      label: 'Revenue', 
-      value: 1200000, // Mock for now
-      change: 23.4, 
-      prefix: '৳',
-      icon: DollarSign,
+      label: 'Active Donors', 
+      value: data.activeDonors, 
+      change: 0, 
+      prefix: '',
+      icon: CheckCircle2,
       gradient: 'from-emerald-500 to-teal-400',
       shadowColor: 'shadow-emerald-500/25'
     },
   ];
 
   const pendingActions = [
-    { label: 'Blood Requests Pending', count: data.pendingRequests, color: 'text-rose-500', bg: 'bg-rose-500' },
-    { label: 'Financial Requests Pending', count: 0, color: 'text-amber-500', bg: 'bg-amber-500' }, // mock
-    { label: 'Donations to Verify', count: data.pendingDonations || 0, color: 'text-blue-500', bg: 'bg-blue-500' },
+    { 
+        label: 'Blood Requests Pending', 
+        count: data.pendingRequests, 
+        color: 'text-rose-500', 
+        bg: 'bg-rose-500', 
+        onClick: () => router.push('/admin/blood-requests?status=pending') 
+    },
+    { 
+        label: 'Donations to Verify', 
+        count: data.pendingDonations || 0, 
+        color: 'text-blue-500', 
+        bg: 'bg-blue-500',
+        onClick: () => router.push('/admin/donations') // Assuming route exists or will be created
+    },
   ];
 
   const getStatusIcon = (status: string) => {
@@ -118,16 +134,45 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             className="px-5 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm font-medium hover:bg-secondary transition-colors"
+            onClick={() => {
+                const reportDate = new Date().toLocaleDateString();
+                const csvContent = [
+                    ['Report Date', reportDate],
+                    [],
+                    ['Metric', 'Value'],
+                    ['Total Users', data.totalUsers],
+                    ['Total Requests', data.totalRequests],
+                    ['Total Donations', data.totalDonations],
+                    ['Active Donors', data.activeDonors],
+                    ['Pending Requests', data.pendingRequests],
+                    [],
+                    ['Recent Activity'],
+                    ['Date', 'Type', 'Title', 'Status'],
+                    ...data.recentActivity.map(a => [
+                        a.time,
+                        a.type,
+                        `"${a.title}"`,
+                        a.status
+                    ])
+                ].map(e => e.join(',')).join('\n');
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `bloodreq_report_${new Date().toISOString().split('T')[0]}.csv`;
+                link.click();
+            }}
           >
             Download Report
           </motion.button>
           <motion.button 
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
+            onClick={() => router.push('/admin/blood-requests')}
             className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-sm font-medium shadow-lg shadow-rose-500/25 hover:shadow-rose-500/40 transition-shadow"
           >
             <Zap className="w-4 h-4 inline mr-2" />
-            Quick Action
+            Manage Requests
           </motion.button>
         </div>
       </motion.div>
@@ -179,7 +224,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </div>
                 <h2 className="font-display text-xl font-semibold">Recent Activity</h2>
               </div>
-              <button className="text-sm text-primary hover:underline flex items-center gap-1">
+              <button 
+                onClick={() => router.push('/admin/blood-requests')}
+                className="text-sm text-primary hover:underline flex items-center gap-1"
+              >
                 View All <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -234,6 +282,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               <motion.div
                 key={action.label}
                 whileHover={{ x: 4 }}
+                onClick={action.onClick}
                 className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer group"
               >
                 <div className="flex items-center gap-3">
@@ -254,9 +303,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <div className="p-4 pt-2">
             <div className="rounded-xl bg-gradient-to-br from-rose-500/10 via-pink-500/10 to-orange-500/10 border border-rose-500/20 p-4">
               <p className="text-sm font-medium text-muted-foreground mb-2">Urgent Need</p>
-              <p className="text-lg font-bold">3 Critical Blood Requests</p>
+              <p className="text-lg font-bold">Critical Blood Requests</p>
               <p className="text-sm text-muted-foreground mt-1">Require immediate attention</p>
-              <button className="mt-3 w-full py-2 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-600 transition-colors">
+              <button 
+                onClick={() => router.push('/admin/blood-requests?urgency=critical')}
+                className="mt-3 w-full py-2 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-600 transition-colors"
+              >
                 View Critical Requests
               </button>
             </div>
