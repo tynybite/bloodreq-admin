@@ -2,7 +2,8 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { 
   LayoutDashboard, 
   Droplets, 
@@ -55,6 +56,8 @@ const menuItems = [
 function MobileDrawer() {
   const pathname = usePathname();
   const { mobileOpen, setMobileOpen } = useSidebar();
+  const router = useRouter(); // Requires import
+  const supabase = createClient(); // Requires import
 
   // Close drawer on route change
   useEffect(() => {
@@ -72,6 +75,11 @@ function MobileDrawer() {
       document.body.style.overflow = '';
     };
   }, [mobileOpen]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.replace('/login');
+  };
 
   return (
     <AnimatePresence>
@@ -160,7 +168,10 @@ function MobileDrawer() {
               {/* Footer */}
               <div className="mt-auto pt-3 border-t border-border/30 px-3">
                 {/* Profile info removed as requested */}
-                <button className="mt-1 flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-sm font-medium text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500">
+                <button 
+                  onClick={handleSignOut}
+                  className="mt-1 flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-sm font-medium text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500"
+                >
                   <LogOut className="h-5 w-5" />
                   <span>Sign Out</span>
                 </button>
@@ -179,6 +190,13 @@ function DesktopSidebar() {
   const { collapsed, setCollapsed } = useSidebar();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const router = useRouter(); // Requires import
+  const supabase = createClient(); // Requires import
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.replace('/login');
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -334,7 +352,10 @@ function DesktopSidebar() {
         <div className="mt-auto pt-3 border-t border-border/30 px-2">
           {/* Profile info removed as requested */}
 
-          <button className={`mt-1 flex w-full items-center rounded-xl px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 ${collapsed ? 'justify-center' : 'gap-3'}`}>
+          <button 
+            onClick={handleSignOut}
+            className={`mt-1 flex w-full items-center rounded-xl px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 ${collapsed ? 'justify-center' : 'gap-3'}`}
+          >
             <LogOut className="h-[18px] w-[18px]" />
             {!collapsed && <span>Sign Out</span>}
           </button>
@@ -358,6 +379,13 @@ export function Sidebar() {
 export function Header() {
   const { theme, setTheme } = useTheme();
   const { mobileOpen, setMobileOpen } = useSidebar();
+  const router = useRouter(); // Requires import
+  const supabase = createClient(); // Requires import
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.replace('/login');
+  };
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/40 bg-background/80 px-4 lg:px-6 backdrop-blur-xl">
@@ -421,6 +449,7 @@ export function Header() {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem 
+              onClick={handleSignOut}
               className="text-red-600 focus:text-red-600 focus:bg-red-500/10 cursor-pointer"
             >
               <LogOut className="mr-2 h-4 w-4" />
