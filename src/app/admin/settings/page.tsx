@@ -70,6 +70,7 @@ function SettingsSection({ title, description, icon: Icon, gradient, children }:
 
 export default function SettingsPage() {
   const [showKey, setShowKey] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [notifications, setNotifications] = useState({
     push: true,
     sms: true,
@@ -79,6 +80,15 @@ export default function SettingsPage() {
     twoFactor: false,
     ipRestriction: false,
   });
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    // Simulate API call - in a real app, updates would go to 'settings' table or 'profiles' metadata
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    // toast.success("Settings saved successfully"); // Needs toast import
+    setIsSaving(false);
+    console.log("Settings saved:", { notifications, security });
+  };
 
   return (
     <motion.div 
@@ -100,10 +110,12 @@ export default function SettingsPage() {
         <motion.button 
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-rose-600 text-white text-sm font-medium shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-shadow flex items-center gap-2"
+          onClick={handleSave}
+          disabled={isSaving}
+          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-rose-600 text-white text-sm font-medium shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-shadow flex items-center gap-2 disabled:opacity-70"
         >
           <Save className="w-4 h-4" />
-          Save Changes
+          {isSaving ? "Saving..." : "Save Changes"}
         </motion.button>
       </motion.div>
 

@@ -13,7 +13,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { User } from "@supabase/supabase-js";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -21,6 +25,28 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
   const [isDark, setIsDark] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const router = useRouter();
+  const supabase = createClient();
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+  }, [supabase.auth]);
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Logged out successfully");
+      router.push("/login");
+      router.refresh();
+    }
+  };
 
   const toggleTheme = () => {
     setIsDark(!isDark);
@@ -117,14 +143,14 @@ export function Header({ onMenuClick }: HeaderProps) {
               className="flex items-center gap-3 pl-2 pr-3"
             >
               <Avatar className="h-8 w-8 border-2 border-primary/20">
-                <AvatarImage src="/avatars/admin.jpg" alt="Admin" />
+                <AvatarImage src={user?.user_metadata?.avatar_url || "/avatars/admin.jpg"} alt="Admin" />
                 <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                  SA
+                  {user?.email?.substring(0,2).toUpperCase() || "AD"}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden text-left md:block">
-                <p className="text-sm font-medium">Super Admin</p>
-                <p className="text-xs text-muted-foreground">admin@bloodreq.com</p>
+                <p className="text-sm font-medium">{user?.user_metadata?.full_name || "Admin User"}</p>
+                <p className="text-xs text-muted-foreground">{user?.email || "admin@bloodreq.com"}</p>
               </div>
             </Button>
           </DropdownMenuTrigger>
@@ -133,11 +159,16 @@ export function Header({ onMenuClick }: HeaderProps) {
               My Account
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile Settings</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href="/admin/settings" className="w-full cursor-pointer">Profile Settings</a>
+            </DropdownMenuItem>
             <DropdownMenuItem>Security</DropdownMenuItem>
             <DropdownMenuItem>Activity Log</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive">
+            <DropdownMenuItem 
+               className="text-destructive focus:text-destructive cursor-pointer"
+               onClick={handleLogout}
+            >
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>

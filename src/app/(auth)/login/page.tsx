@@ -1,8 +1,13 @@
 "use client";
 
 
+
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,13 +24,58 @@ import {
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
-  // Mock Handle Login
+  const router = useRouter();
+  const supabase = createClient();
+
+  // Handle Login
+  // Handle Login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsLoading(false);
+    
+    // Get values from form
+    // Note: We're selecting by ID which is fragile in React but works for this structure
+    const email = (document.getElementById('email') as HTMLInputElement)?.value;
+    const password = (document.getElementById('password') as HTMLInputElement)?.value;
+
+    if (!email || !password) {
+        toast.error("Please enter email and password");
+        setIsLoading(false);
+        return;
+    }
+
+    try {
+      // 1. Sign in
+      const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) throw signInError;
+      if (!user) throw new Error("No user returned from sign in");
+
+      // 2. Check if user is admin
+      const { data: adminUser, error: adminError } = await supabase
+        .from('admin_users')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (adminError || !adminUser) {
+        console.error("Admin Login Error:", adminError);
+        // Not an admin - sign out and error
+        await supabase.auth.signOut();
+        toast.error(adminError ? `DB Error: ${adminError.message}` : "Access denied. Admin privileges required.");
+      } else {
+        toast.success("Logged in successfully");
+        router.push("/admin/dashboard");
+        router.refresh();
+      }
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred during login");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -60,10 +110,11 @@ export default function LoginPage() {
                   <Input
                       id="phone"
                       placeholder="1712-345678"
-                      required
-                      className="bg-zinc-50/50 border-zinc-200 focus-visible:ring-red-600 h-11 text-zinc-900"
+                      disabled
+                      className="bg-zinc-50/50 border-zinc-200 focus-visible:ring-red-600 h-11 text-zinc-900 cursor-not-allowed"
                   />
               </div>
+              <p className="text-xs text-muted-foreground">Phone login is currently disabled for admins.</p>
             </div>
           </TabsContent>
 
@@ -78,26 +129,25 @@ export default function LoginPage() {
                 className="bg-zinc-50/50 border-zinc-200 focus-visible:ring-red-600 h-11 text-zinc-900"
               />
             </div>
-          </TabsContent>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password" className="text-zinc-700">Password</Label>
-              <Link
-                href="/forgot-password"
-                className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline"
-              >
-                Forgot password?
-              </Link>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-zinc-700">Password</Label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                required
+                className="bg-zinc-50/50 border-zinc-200 focus-visible:ring-red-600 h-11 text-zinc-900"
+              />
             </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              required
-              className="bg-zinc-50/50 border-zinc-200 focus-visible:ring-red-600 h-11 text-zinc-900"
-            />
-          </div>
+          </TabsContent>
 
           <div className="flex items-center space-x-2">
             <Checkbox id="remember" className="border-zinc-300 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600 rounded" />

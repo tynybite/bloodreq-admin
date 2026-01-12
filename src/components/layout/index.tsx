@@ -28,6 +28,14 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
 import { useSidebar } from './SidebarContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
@@ -151,18 +159,7 @@ function MobileDrawer() {
 
               {/* Footer */}
               <div className="mt-auto pt-3 border-t border-border/30 px-3">
-                <div className="flex items-center gap-3 rounded-xl p-2">
-                  <div className="relative">
-                    <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary/20 to-rose-500/20 border border-primary/20 overflow-hidden">
-                      <img src="https://avatar.vercel.sh/admin" alt="Admin" className="h-full w-full object-cover" />
-                    </div>
-                    <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-background" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">Admin</p>
-                    <p className="text-xs text-muted-foreground">admin@bloodreq.com</p>
-                  </div>
-                </div>
+                {/* Profile info removed as requested */}
                 <button className="mt-1 flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-sm font-medium text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500">
                   <LogOut className="h-5 w-5" />
                   <span>Sign Out</span>
@@ -192,7 +189,7 @@ function DesktopSidebar() {
   return (
     <motion.aside 
       initial={false}
-      animate={{ width: collapsed ? 72 : 260 }}
+      animate={{ width: collapsed ? 72 : 240 }}
       transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
       className="fixed left-0 top-0 z-40 h-screen border-r border-border/40 bg-background/95 backdrop-blur-xl overflow-hidden hidden lg:block"
     >
@@ -311,7 +308,7 @@ function DesktopSidebar() {
                         initial={{ opacity: 0, width: 0 }}
                         animate={{ opacity: 1, width: 'auto' }}
                         exit={{ opacity: 0, width: 0 }}
-                        className="text-sm font-medium whitespace-nowrap"
+                        className="text-[15px] font-medium whitespace-nowrap"
                       >
                         {item.label}
                       </motion.span>
@@ -335,22 +332,7 @@ function DesktopSidebar() {
 
         {/* Footer */}
         <div className="mt-auto pt-3 border-t border-border/30 px-2">
-          <div className={`flex items-center rounded-xl p-2 hover:bg-secondary/50 cursor-pointer ${collapsed ? 'justify-center' : 'gap-3'}`}>
-            <div className="relative flex-shrink-0">
-              <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary/20 to-rose-500/20 border border-primary/20 overflow-hidden">
-                <img src="https://avatar.vercel.sh/admin" alt="Admin" className="h-full w-full object-cover" />
-              </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-background" />
-            </div>
-            <AnimatePresence>
-              {!collapsed && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">Admin</p>
-                  <p className="text-[11px] text-muted-foreground truncate">admin@bloodreq.com</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          {/* Profile info removed as requested */}
 
           <button className={`mt-1 flex w-full items-center rounded-xl px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 ${collapsed ? 'justify-center' : 'gap-3'}`}>
             <LogOut className="h-[18px] w-[18px]" />
@@ -406,10 +388,46 @@ export function Header() {
           <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
         </motion.button>
 
-        {/* Avatar - Hidden on mobile */}
-        <div className="h-8 w-8 overflow-hidden rounded-lg border border-border/50 bg-secondary/20 hidden sm:block">
-          <img src="https://avatar.vercel.sh/admin" alt="Admin" className="h-full w-full object-cover" />
-        </div>
+        {/* User Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="relative h-9 w-9 overflow-hidden rounded-xl border border-border/50 transition-colors hover:border-border"
+            >
+              <img src="https://avatar.vercel.sh/admin" alt="Admin" className="h-full w-full object-cover" />
+            </motion.button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 mt-2">
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">Admin</p>
+                <p className="text-xs leading-none text-muted-foreground">admin@bloodreq.com</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/admin/settings" className="cursor-pointer">
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/admin/profile" className="cursor-pointer">
+                <Users className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              className="text-red-600 focus:text-red-600 focus:bg-red-500/10 cursor-pointer"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Mobile Menu Toggle - 3x3 Grid Icon */}
         <motion.button
