@@ -71,19 +71,81 @@
   --radius-4xl: calc(var(--radius) + 16px);
 }
 
-/* BloodReq Premium Dark Theme - Default */
+/* BloodReq Premium Theme System */
 :root {
   --radius: 0.625rem;
 
-  /* Core Colors - Dark Mode by Default */
+  /* LIGHT THEME (Default) */
+  --background: #fafafa;
+  --foreground: #0a0a0f;
+  
+  --card: #ffffff;
+  --card-foreground: #0a0a0f;
+  
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0f;
+
+  /* Primary - Blood Red */
+  --primary: #dc2626;
+  --primary-foreground: #ffffff;
+
+  /* Secondary */
+  --secondary: #f4f4f5;
+  --secondary-foreground: #0a0a0f;
+
+  /* Muted */
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+
+  /* Accent - Warm Orange */
+  --accent: #ea580c;
+  --accent-foreground: #ffffff;
+
+  /* Blood Theme Colors */
+  --blood: #dc2626;
+  --blood-foreground: #ffffff;
+  --success: #22c55e;
+  --warning: #eab308;
+
+  /* Destructive */
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+
+  /* Borders & Inputs */
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #dc2626;
+
+  /* Chart Colors */
+  --chart-1: #ef4444; /* bright red */
+  --chart-2: #f97316; /* orange */
+  --chart-3: #22c55e; /* green */
+  --chart-4: #3b82f6; /* blue */
+  --chart-5: #8b5cf6; /* purple */
+
+  /* Sidebar (Light) */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0a0a0f;
+  --sidebar-primary: #dc2626;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #0a0a0f;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #dc2626;
+}
+
+/* DARK THEME */
+.dark {
   --background: #0a0a0f;
   --foreground: #fafafa;
+  
   --card: #12121a;
   --card-foreground: #fafafa;
+  
   --popover: #12121a;
   --popover-foreground: #fafafa;
 
-  /* Primary - Blood Red */
+  /* Primary */
   --primary: #ef4444;
   --primary-foreground: #ffffff;
 
@@ -95,7 +157,7 @@
   --muted: #1e1e2e;
   --muted-foreground: #71717a;
 
-  /* Accent - Warm Orange */
+  /* Accent */
   --accent: #f97316;
   --accent-foreground: #ffffff;
 
@@ -107,20 +169,21 @@
 
   /* Destructive */
   --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
 
   /* Borders & Inputs */
   --border: #27272a;
   --input: #27272a;
   --ring: #ef4444;
 
-  /* Chart Colors */
+  /* Chart Colors (Same or slightly brighter for dark mode) */
   --chart-1: #ef4444;
   --chart-2: #f97316;
   --chart-3: #22c55e;
   --chart-4: #3b82f6;
   --chart-5: #8b5cf6;
 
-  /* Sidebar */
+  /* Sidebar (Dark) */
   --sidebar: #0f0f14;
   --sidebar-foreground: #fafafa;
   --sidebar-primary: #ef4444;
@@ -129,34 +192,6 @@
   --sidebar-accent-foreground: #fafafa;
   --sidebar-border: #1e1e2e;
   --sidebar-ring: #ef4444;
-}
-
-/* Light Mode Override */
-.light {
-  --background: #fafafa;
-  --foreground: #0a0a0f;
-  --card: #ffffff;
-  --card-foreground: #0a0a0f;
-  --popover: #ffffff;
-  --popover-foreground: #0a0a0f;
-  --primary: #dc2626;
-  --primary-foreground: #ffffff;
-  --secondary: #f4f4f5;
-  --secondary-foreground: #0a0a0f;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --accent: #ea580c;
-  --accent-foreground: #ffffff;
-  --border: #e4e4e7;
-  --input: #e4e4e7;
-  --ring: #dc2626;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #0a0a0f;
-  --sidebar-primary: #dc2626;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f4f4f5;
-  --sidebar-accent-foreground: #0a0a0f;
-  --sidebar-border: #e4e4e7;
 }
 
 @layer base {
@@ -198,19 +233,31 @@
 
 /* Glassmorphism Utilities */
 .glass {
-  background: rgba(18, 18, 26, 0.8);
+  background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.dark .glass {
+  background: rgba(18, 18, 26, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.dark .glass-card {
   background: linear-gradient(
     135deg,
     rgba(18, 18, 26, 0.9) 0%,
     rgba(18, 18, 26, 0.7) 100%
   );
-  backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
 }
 
 /* Gradient Utilities */
@@ -248,4 +295,8 @@
 
 .glow-accent {
   box-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
+}
+
+.btn-primary {
+  @apply bg-primary text-white shadow-lg shadow-primary/25 hover:bg-red-600 hover:shadow-primary/40 transition-all active:scale-95 font-semibold tracking-wide uppercase;
 }

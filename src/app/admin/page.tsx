@@ -1,4 +1,8 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+'use client';
+
+import SpotlightCard from "@/components/reactbits/SpotlightCard";
+import CountUp from "@/components/reactbits/CountUp";
+import TiltedCard from "@/components/reactbits/TiltedCard";
 import { Badge } from "@/components/ui/badge";
 import {
   Users,
@@ -9,41 +13,60 @@ import {
   TrendingDown,
   Clock,
   CheckCircle2,
+  Activity,
+  ArrowRight
 } from "lucide-react";
+import { motion } from "framer-motion";
 
 // Mock data for dashboard metrics
 const metrics = [
   {
     title: "Total Users",
-    value: "24,823",
+    value: 24823,
+    prefix: "",
+    suffix: "",
     change: "+12.5%",
     trend: "up",
     icon: Users,
     description: "Registered users",
+    color: "from-blue-500/20 to-blue-600/5",
+    accent: "text-blue-400"
   },
   {
     title: "Blood Requests",
-    value: "1,284",
+    value: 1284,
+    prefix: "",
+    suffix: "",
     change: "+8.2%",
     trend: "up",
     icon: Droplets,
     description: "Active requests",
+    color: "from-red-500/20 to-red-600/5",
+    accent: "text-red-400"
   },
   {
     title: "Financial Requests",
-    value: "342",
+    value: 342,
+    prefix: "",
+    suffix: "",
     change: "-3.1%",
     trend: "down",
     icon: HandCoins,
     description: "Fundraising campaigns",
+    color: "from-orange-500/20 to-orange-600/5",
+    accent: "text-orange-400"
   },
   {
     title: "Revenue",
-    value: "৳1.2M",
+    value: 1200000,
+    prefix: "৳",
+    suffix: "",
     change: "+23.4%",
     trend: "up",
     icon: Wallet,
     description: "This month",
+    color: "from-emerald-500/20 to-emerald-600/5",
+    accent: "text-emerald-400"
   },
 ];
 
@@ -52,19 +75,22 @@ const pendingActions = [
     title: "Blood Requests Pending",
     count: 12,
     icon: Droplets,
-    href: "/blood-requests",
+    href: "/admin/blood-requests",
+    color: "text-red-400"
   },
   {
     title: "Financial Requests Pending",
     count: 5,
     icon: HandCoins,
-    href: "/financial-requests",
+    href: "/admin/financial-requests",
+    color: "text-orange-400"
   },
   {
     title: "Donations to Verify",
     count: 8,
     icon: CheckCircle2,
-    href: "/donations",
+    href: "/admin/donations",
+    color: "text-emerald-400"
   },
 ];
 
@@ -103,203 +129,192 @@ const recentActivity = [
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Page Header */}
-      <div>
-        <h1 className="font-display text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Welcome back! Here&apos;s what&apos;s happening with BloodReq.
-        </p>
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="font-display text-4xl font-bold tracking-tight text-foreground drop-shadow-sm">
+            Dashboard
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Overview of your platform's performance and recent activities.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button className="px-4 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground hover:bg-secondary/80 transition-colors">
+            Download Report
+          </button>
+          <button className="px-4 py-2 bg-primary hover:bg-red-600 text-white rounded-lg text-sm font-medium shadow-lg shadow-primary/25 transition-all">
+            Create Request
+          </button>
+        </div>
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {metrics.map((metric) => {
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {metrics.map((metric, i) => {
           const Icon = metric.icon;
           const TrendIcon = metric.trend === "up" ? TrendingUp : TrendingDown;
           
           return (
-            <Card key={metric.title} className="glass-card border-border/50">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {metric.title}
-                </CardTitle>
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                  <Icon className="h-5 w-5 text-primary" />
+            <SpotlightCard 
+              key={metric.title} 
+              className="p-6 border-border/50 bg-card/50 backdrop-blur-md dark:bg-zinc-900/50"
+              spotlightColor="rgba(239, 68, 68, 0.15)"
+            >
+              <div className="flex justify-between items-start mb-6">
+                 <div className={`p-3 rounded-xl bg-gradient-to-br ${metric.color} border border-border/10`}>
+                    <Icon className={`h-6 w-6 ${metric.accent}`} />
+                 </div>
+                 {metric.trend === 'up' ? (
+                   <span className="flex items-center text-xs font-medium text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full border border-emerald-500/20">
+                      <TrendingUp className="w-3 h-3 mr-1" />
+                      {metric.change}
+                   </span>
+                 ) : (
+                    <span className="flex items-center text-xs font-medium text-red-500 bg-red-500/10 px-2 py-1 rounded-full border border-red-500/20">
+                      <TrendingDown className="w-3 h-3 mr-1" />
+                      {metric.change}
+                   </span>
+                 )}
+              </div>
+              
+              <div className="space-y-1">
+                <h3 className="text-sm font-medium text-muted-foreground">{metric.title}</h3>
+                <div className="text-3xl font-display font-bold text-foreground tracking-tight flex items-baseline gap-1">
+                   {metric.prefix}
+                   <CountUp 
+                     to={metric.value} 
+                     separator=","
+                     duration={2 + i * 0.2} 
+                     className="tabular-nums"
+                   />
+                   {metric.suffix}
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold font-display">{metric.value}</div>
-                <div className="mt-1 flex items-center gap-1 text-xs">
-                  <TrendIcon
-                    className={`h-3 w-3 ${
-                      metric.trend === "up" ? "text-success" : "text-destructive"
-                    }`}
-                  />
-                  <span
-                    className={
-                      metric.trend === "up" ? "text-success" : "text-destructive"
-                    }
-                  >
-                    {metric.change}
-                  </span>
-                  <span className="text-muted-foreground">vs last month</span>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </SpotlightCard>
           );
         })}
       </div>
 
-      {/* Quick Actions & Activity */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Pending Actions */}
-        <Card className="glass-card border-border/50">
-          <CardHeader>
-            <CardTitle className="font-display flex items-center gap-2">
-              <Clock className="h-5 w-5 text-warning" />
-              Pending Actions
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {pendingActions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <div
-                  key={action.title}
-                  className="flex items-center justify-between rounded-lg bg-secondary/50 p-3 transition-colors hover:bg-secondary"
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-sm">{action.title}</span>
-                  </div>
-                  <Badge variant="destructive" className="font-semibold">
-                    {action.count}
-                  </Badge>
+      <div className="grid gap-8 lg:grid-cols-3">
+        {/* Activity Feed */}
+        <div className="lg:col-span-2 space-y-6">
+           <div className="rounded-3xl border border-border/50 bg-card/50 backdrop-blur-md p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                   <div className="p-2 bg-red-500/10 rounded-lg">
+                      <Activity className="w-5 h-5 text-red-500" />
+                   </div>
+                   <h2 className="text-xl font-display font-semibold text-foreground">Recent Activity</h2>
                 </div>
-              );
-            })}
-          </CardContent>
-        </Card>
+                <button className="text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors flex items-center gap-1">
+                  View All <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
 
-        {/* Recent Activity */}
-        <Card className="glass-card border-border/50 lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="font-display">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div
-                  key={index}
-                  className="flex items-start justify-between border-b border-border/50 pb-4 last:border-0 last:pb-0"
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`mt-1 h-2 w-2 rounded-full ${
+              <div className="space-y-6">
+                {recentActivity.map((activity, index) => (
+                  <motion.div 
+                    key={index}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="group flex items-center gap-4 p-4 rounded-xl hover:bg-secondary/50 transition-colors border border-transparent hover:border-border/50"
+                  >
+                    <div className={`mt-1 h-3 w-3 rounded-full flex-shrink-0 ${
                         activity.status === "pending"
-                          ? "bg-warning animate-pulse"
+                          ? "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"
                           : activity.status === "verified" || activity.status === "approved"
-                          ? "bg-success"
+                          ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
                           : activity.status === "completed"
-                          ? "bg-primary"
-                          : "bg-muted-foreground"
-                      }`}
+                          ? "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+                          : "bg-zinc-500"
+                      }`} 
                     />
-                    <div>
-                      <p className="text-sm">{activity.message}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {activity.time}
-                      </p>
+                    <div className="flex-1">
+                       <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                         {activity.message}
+                       </p>
+                       <p className="text-xs text-muted-foreground">{activity.time}</p>
                     </div>
-                  </div>
-                  <Badge
-                    variant={
-                      activity.status === "pending"
-                        ? "outline"
-                        : activity.status === "verified" || activity.status === "approved"
-                        ? "default"
-                        : "secondary"
-                    }
-                    className="text-xs capitalize"
-                  >
-                    {activity.status}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                    <Badge variant="outline" className="bg-secondary/50 border-border/50 text-muted-foreground">
+                       {activity.status}
+                    </Badge>
+                  </motion.div>
+                ))}
+              </div>
+           </div>
+        </div>
+
+        {/* Right Column: Pending Actions & 3D Card */}
+        <div className="space-y-6">
+           {/* Pending Actions */}
+           <div className="rounded-3xl border border-border/50 bg-card/50 backdrop-blur-md p-6">
+               <h3 className="text-lg font-display font-semibold text-foreground mb-6 flex items-center gap-2">
+                 <Clock className="w-5 h-5 text-amber-500" />
+                 Pending Actions
+               </h3>
+               <div className="space-y-3">
+                  {pendingActions.map((action) => (
+                    <div key={action.title} className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/50 hover:bg-secondary/80 transition-colors cursor-pointer group">
+                       <div className="flex items-center gap-3">
+                          <action.icon className={`w-4 h-4 ${action.color}`} />
+                          <span className="text-sm font-medium text-foreground">{action.title}</span>
+                       </div>
+                       <div className="h-6 w-6 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold">
+                          {action.count}
+                       </div>
+                    </div>
+                  ))}
+               </div>
+           </div>
+
+           {/* Featured Promo / Blood Distribution 3D Card */}
+           <div className="h-[300px] w-full">
+             <TiltedCard
+                imageSrc=""
+                containerHeight="100%"
+                containerWidth="100%"
+                imageHeight="100%"
+                imageWidth="100%"
+                rotateAmplitude={8}
+                scaleOnHover={1.05}
+                displayOverlayContent={true}
+                overlayContent={
+                   <div className="h-full w-full flex flex-col justify-end p-6 bg-gradient-to-t from-red-900/90 via-red-900/40 to-transparent rounded-[15px]">
+                      <div className="absolute top-6 left-6">
+                         <div className="px-3 py-1 bg-red-500 text-white text-xs font-bold uppercase tracking-wider rounded-full w-fit mb-2">
+                           Urgent Need
+                         </div>
+                      </div>
+                      <h4 className="text-2xl font-display font-bold text-white mb-2">O- Blood Shortage</h4>
+                      <p className="text-sm text-red-100 mb-4">Dhaka region is running low on O- blood. Initiate a campaign to boost donors.</p>
+                      <button className="w-full py-3 bg-white text-red-900 font-bold rounded-xl shadow-lg hover:bg-red-50 transition-colors">
+                         Launch Campaign
+                      </button>
+                   </div>
+                }
+             />
+           </div>
+        </div>
       </div>
-
-      {/* Blood Type Distribution */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="glass-card border-border/50">
-          <CardHeader>
-            <CardTitle className="font-display">Blood Type Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-4 gap-4">
-              {[
-                { type: "A+", count: 3421, color: "bg-chart-1" },
-                { type: "A-", count: 892, color: "bg-chart-2" },
-                { type: "B+", count: 4123, color: "bg-chart-3" },
-                { type: "B-", count: 721, color: "bg-chart-4" },
-                { type: "O+", count: 5892, color: "bg-chart-5" },
-                { type: "O-", count: 1203, color: "bg-chart-1" },
-                { type: "AB+", count: 1567, color: "bg-chart-2" },
-                { type: "AB-", count: 423, color: "bg-chart-3" },
-              ].map((blood) => (
-                <div
-                  key={blood.type}
-                  className="flex flex-col items-center rounded-lg bg-secondary/50 p-4"
-                >
-                  <div
-                    className={`mb-2 flex h-10 w-10 items-center justify-center rounded-full ${blood.color} text-white font-bold`}
-                  >
-                    {blood.type}
+      
+      {/* Footer / Stats Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+         {['A+', 'B+', 'AB+', 'O+'].map(type => (
+            <div key={type} className="p-4 rounded-2xl bg-card border border-border/50 flex items-center justify-between shadow-sm">
+               <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 font-bold border border-red-500/20">
+                    {type}
                   </div>
-                  <span className="text-lg font-semibold">
-                    {blood.count.toLocaleString()}
-                  </span>
-                  <span className="text-xs text-muted-foreground">donors</span>
-                </div>
-              ))}
+                  <div className="text-sm text-muted-foreground">Available</div>
+               </div>
+               <div className="text-xl font-bold text-foreground">
+                  <CountUp to={Math.floor(Math.random() * 500) + 100} duration={3} />
+               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Top Countries */}
-        <Card className="glass-card border-border/50">
-          <CardHeader>
-            <CardTitle className="font-display">Top Regions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[
-                { name: "Bangladesh", users: 15234, percentage: 62 },
-                { name: "India", users: 5892, percentage: 24 },
-                { name: "Pakistan", users: 2341, percentage: 9 },
-                { name: "Others", users: 1356, percentage: 5 },
-              ].map((region) => (
-                <div key={region.name} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{region.name}</span>
-                    <span className="text-sm text-muted-foreground">
-                      {region.users.toLocaleString()} users
-                    </span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                    <div
-                      className="h-full rounded-full gradient-blood transition-all"
-                      style={{ width: `${region.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+         ))}
       </div>
     </div>
   );

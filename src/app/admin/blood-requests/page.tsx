@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import SpotlightCard from "@/components/reactbits/SpotlightCard";
+import CountUp from "@/components/reactbits/CountUp";
 import {
   Search,
   Filter,
@@ -34,6 +37,7 @@ import {
   MapPin,
   Clock,
   AlertTriangle,
+  Activity,
 } from "lucide-react";
 
 // Mock blood request data
@@ -169,24 +173,34 @@ export default function BloodRequestsPage() {
             <span className="font-medium">{pendingCount} pending approval</span>
           </div>
         )}
+        <Button asChild className="btn-primary">
+            <Link href="/admin/blood-requests/new">
+                Create Request
+            </Link>
+        </Button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: "Pending", value: 12, color: "text-warning" },
-          { label: "Approved", value: 45, color: "text-success" },
-          { label: "In Progress", value: 23, color: "text-primary" },
-          { label: "Completed", value: 1204, color: "text-muted-foreground" },
+          { label: "Pending", value: 12, color: "text-warning", bg: "bg-warning/10" },
+          { label: "Approved", value: 45, color: "text-success", bg: "bg-success/10" },
+          { label: "In Progress", value: 23, color: "text-primary", bg: "bg-primary/10" },
+          { label: "Completed", value: 1204, color: "text-muted-foreground", bg: "bg-secondary" },
         ].map((stat) => (
-          <Card key={stat.label} className="glass-card border-border/50">
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
-              <p className={`text-3xl font-bold font-display ${stat.color}`}>
-                {stat.value}
-              </p>
-            </CardContent>
-          </Card>
+          <SpotlightCard key={stat.label} className="p-6 border-border/50 bg-card/50 backdrop-blur-md dark:bg-zinc-900/50" spotlightColor="rgba(220, 38, 38, 0.1)">
+             <div className="flex justify-between items-start mb-4">
+                <div>
+                   <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                   <p className={`text-3xl font-bold font-display mt-2 ${stat.color}`}>
+                     <CountUp to={stat.value} duration={2} />
+                   </p>
+                </div>
+                <div className={`p-2 rounded-lg ${stat.bg} ${stat.color}`}>
+                   <Activity className="h-5 w-5" />
+                </div>
+             </div>
+          </SpotlightCard>
         ))}
       </div>
 

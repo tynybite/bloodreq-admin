@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "BloodReq - Save Lives, One Drop at a Time",
   description: "Connect blood donors with patients in need. Real-time matching, verified requests, and a community that saves lives every day.",
 };
@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -22,9 +22,16 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen antialiased">
-        {children}
-        <Toaster />
+      <body className="min-h-screen bg-background font-sans antialiased">
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem={false}
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );
