@@ -23,8 +23,11 @@ export default function PaymentSettingsForm({ initialBkash, initialPaypal, initi
     const [isSaving, setIsSaving] = useState(false);
     const [bkash, setBkash] = useState(initialBkash || {
         enabled: false,
-        merchantNumber: "",
-        accountType: "personal", 
+        username: "",
+        password: "",
+        appKey: "",
+        appSecret: "",
+        isSandbox: true,
     });
     
     const [paypal, setPaypal] = useState(initialPaypal || {
@@ -145,35 +148,58 @@ export default function PaymentSettingsForm({ initialBkash, initialPaypal, initi
                                 </CardHeader>
 
                                 <CardContent className="p-5 md:p-8 space-y-6 md:space-y-8">
-                                    <div className="grid md:grid-cols-2 gap-6 md:gap-8">
-                                        <div className="space-y-3">
-                                            <Label className="text-base font-semibold">Merchant Number</Label>
-                                            <div className="relative">
+                                    <div className="space-y-6">
+                                        <div className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-secondary/20">
+                                            <div className="space-y-1">
+                                                <Label className="text-base font-semibold">Sandbox Mode</Label>
+                                                <p className="text-sm text-muted-foreground">Enable for testing with bKash sandbox credentials</p>
+                                            </div>
+                                            <Switch 
+                                                checked={bkash.isSandbox} 
+                                                onCheckedChange={(checked) => setBkash({ ...bkash, isSandbox: checked })} 
+                                            />
+                                        </div>
+
+                                        <div className="grid md:grid-cols-2 gap-6">
+                                            <div className="space-y-3">
+                                                <Label className="text-base font-semibold">Username</Label>
                                                 <Input 
-                                                    placeholder="01XXXXXXXXX" 
-                                                    value={bkash.merchantNumber}
-                                                    onChange={(e) => setBkash({ ...bkash, merchantNumber: e.target.value })}
-                                                    className="h-11 md:h-12 pl-4 rounded-xl bg-secondary/30 border-border/50 focus:border-pink-500/50 focus:ring-pink-500/20 transition-all font-mono text-base md:text-lg"
+                                                    placeholder="bKash PGW Username" 
+                                                    value={bkash.username}
+                                                    onChange={(e) => setBkash({ ...bkash, username: e.target.value })}
+                                                    className="h-11 md:h-12 rounded-xl bg-secondary/30 border-border/50 focus:border-pink-500/50 focus:ring-pink-500/20 font-mono text-sm md:text-base"
                                                 />
                                             </div>
-                                            <p className="text-xs md:text-sm text-muted-foreground">The number that will receive funds.</p>
-                                        </div>
-                                        <div className="space-y-3">
-                                            <Label className="text-base font-semibold">Account Type</Label>
-                                            <Select 
-                                                value={bkash.accountType} 
-                                                onValueChange={(val) => setBkash({ ...bkash, accountType: val })}
-                                            >
-                                                <SelectTrigger className="h-11 md:h-12 rounded-xl bg-secondary/30 border-border/50 focus:ring-pink-500/20">
-                                                    <SelectValue placeholder="Select type" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="personal">Personal Account</SelectItem>
-                                                    <SelectItem value="merchant">Merchant Account</SelectItem>
-                                                    <SelectItem value="agent">Agent Number</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <p className="text-xs md:text-sm text-muted-foreground">Affects transaction limits and fees.</p>
+                                            <div className="space-y-3">
+                                                <Label className="text-base font-semibold">Password</Label>
+                                                <Input 
+                                                    type="password"
+                                                    placeholder="bKash PGW Password" 
+                                                    value={bkash.password}
+                                                    onChange={(e) => setBkash({ ...bkash, password: e.target.value })}
+                                                    className="h-11 md:h-12 rounded-xl bg-secondary/30 border-border/50 focus:border-pink-500/50 focus:ring-pink-500/20 font-mono text-sm md:text-base"
+                                                />
+                                            </div>
+                                            <div className="space-y-3">
+                                                <Label className="text-base font-semibold">App Key</Label>
+                                                <Input 
+                                                    type="password"
+                                                    placeholder="bKash App Key" 
+                                                    value={bkash.appKey}
+                                                    onChange={(e) => setBkash({ ...bkash, appKey: e.target.value })}
+                                                    className="h-11 md:h-12 rounded-xl bg-secondary/30 border-border/50 focus:border-pink-500/50 focus:ring-pink-500/20 font-mono text-sm md:text-base"
+                                                />
+                                            </div>
+                                            <div className="space-y-3">
+                                                <Label className="text-base font-semibold">App Secret</Label>
+                                                <Input 
+                                                    type="password"
+                                                    placeholder="bKash App Secret" 
+                                                    value={bkash.appSecret}
+                                                    onChange={(e) => setBkash({ ...bkash, appSecret: e.target.value })}
+                                                    className="h-11 md:h-12 rounded-xl bg-secondary/30 border-border/50 focus:border-pink-500/50 focus:ring-pink-500/20 font-mono text-sm md:text-base"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </CardContent>
