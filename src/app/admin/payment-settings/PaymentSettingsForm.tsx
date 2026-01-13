@@ -16,9 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 interface PaymentSettingsFormProps {
     initialBkash: any;
     initialPaypal: any;
+    initialCryptomus: any;
 }
 
-export default function PaymentSettingsForm({ initialBkash, initialPaypal }: PaymentSettingsFormProps) {
+export default function PaymentSettingsForm({ initialBkash, initialPaypal, initialCryptomus }: PaymentSettingsFormProps) {
     const [isSaving, setIsSaving] = useState(false);
     const [bkash, setBkash] = useState(initialBkash || {
         enabled: false,
@@ -33,12 +34,19 @@ export default function PaymentSettingsForm({ initialBkash, initialPaypal }: Pay
         mode: "sandbox", 
     });
 
+    const [cryptomus, setCryptomus] = useState(initialCryptomus || {
+        enabled: false,
+        merchantId: "",
+        apiKey: "",
+    });
+
     const handleSave = async () => {
         setIsSaving(true);
         try {
             await Promise.all([
                 updatePaymentSettings('payment_bkash', bkash),
-                updatePaymentSettings('payment_paypal', paypal)
+                updatePaymentSettings('payment_paypal', paypal),
+                updatePaymentSettings('payment_cryptomus', cryptomus)
             ]);
             toast.success("Payment settings saved successfully");
         } catch (error) {
@@ -85,18 +93,24 @@ export default function PaymentSettingsForm({ initialBkash, initialPaypal }: Pay
 
             <motion.div variants={itemVariants}>
                 <Tabs defaultValue="bkash" className="w-full space-y-6 md:space-y-8">
-                    <TabsList className="p-1 h-12 md:h-14 bg-secondary/30 backdrop-blur-md rounded-2xl border border-white/10 w-full max-w-md mx-auto grid grid-cols-2">
+                    <TabsList className="p-1 h-12 md:h-14 bg-secondary/30 backdrop-blur-md rounded-2xl border border-white/10 w-full max-w-xl mx-auto grid grid-cols-3">
                         <TabsTrigger 
                             value="bkash" 
-                            className="h-full rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:shadow-md transition-all font-medium text-sm md:text-base"
+                            className="h-full rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:shadow-md transition-all font-medium text-xs md:text-sm"
                         >
                             bKash
                         </TabsTrigger>
                         <TabsTrigger 
                             value="paypal" 
-                            className="h-full rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:shadow-md transition-all font-medium text-sm md:text-base"
+                            className="h-full rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:shadow-md transition-all font-medium text-xs md:text-sm"
                         >
                             PayPal
+                        </TabsTrigger>
+                         <TabsTrigger 
+                            value="cryptomus" 
+                            className="h-full rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:shadow-md transition-all font-medium text-xs md:text-sm"
+                        >
+                            Cryptomus
                         </TabsTrigger>
                     </TabsList>
                     
@@ -253,6 +267,72 @@ export default function PaymentSettingsForm({ initialBkash, initialPaypal }: Pay
                                                 onChange={(e) => setPaypal({ ...paypal, clientSecret: e.target.value })}
                                                 className="h-11 md:h-12 rounded-xl bg-secondary/30 border-border/50 focus:border-blue-500/50 focus:ring-blue-500/20 font-mono text-sm md:text-base"
                                             />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                         </div>
+                    </TabsContent>
+
+                    {/* Cryptomus Settings */}
+                    <TabsContent value="cryptomus" className="focus-visible:outline-none">
+                         <div className="relative group">
+                            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-amber-500/5 rounded-3xl blur-xl transition-all duration-500 group-hover:blur-2xl opacity-50" />
+                            <Card className="relative overflow-hidden border-border/50 bg-card/40 backdrop-blur-xl shadow-xl">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+                                
+                                <CardHeader className="pb-6 md:pb-8 border-b border-border/40 space-y-4 md:space-y-0">
+                                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                                        <div className="flex items-center gap-4 md:gap-5">
+                                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-orange-600 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/25 shrink-0">
+                                                <Wallet className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <CardTitle className="text-xl md:text-2xl font-display">Cryptomus Configuration</CardTitle>
+                                                <CardDescription className="text-sm md:text-base">Accept cryptocurrency payments securely</CardDescription>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between md:justify-end gap-3 bg-secondary/30 px-4 py-2 rounded-full border border-border/50 w-full md:w-auto">
+                                            <span className="text-sm font-medium text-muted-foreground mr-2">
+                                                {cryptomus.enabled ? 'Enabled' : 'Disabled'}
+                                            </span>
+                                            <Switch 
+                                                checked={cryptomus.enabled} 
+                                                onCheckedChange={(checked) => setCryptomus({ ...cryptomus, enabled: checked })} 
+                                            />
+                                        </div>
+                                    </div>
+                                </CardHeader>
+                                
+                                <CardContent className="p-5 md:p-8 space-y-6 md:space-y-8">
+                                    <div className="grid gap-6">
+                                        <div className="space-y-3">
+                                            <Label className="text-base font-semibold">Merchant ID</Label>
+                                            <Input 
+                                                placeholder="Cryptomus Merchant ID" 
+                                                value={cryptomus.merchantId}
+                                                onChange={(e) => setCryptomus({ ...cryptomus, merchantId: e.target.value })}
+                                                className="h-11 md:h-12 rounded-xl bg-secondary/30 border-border/50 focus:border-orange-500/50 focus:ring-orange-500/20 font-mono text-sm md:text-base"
+                                            />
+                                            <p className="text-xs md:text-sm text-muted-foreground">Found in your Cryptomus merchant settings.</p>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <Label className="text-base font-semibold">Payment API Key</Label>
+                                            <Input 
+                                                type="password"
+                                                placeholder="Payment API Key" 
+                                                value={cryptomus.apiKey}
+                                                onChange={(e) => setCryptomus({ ...cryptomus, apiKey: e.target.value })}
+                                                className="h-11 md:h-12 rounded-xl bg-secondary/30 border-border/50 focus:border-orange-500/50 focus:ring-orange-500/20 font-mono text-sm md:text-base"
+                                            />
+                                            <p className="text-xs md:text-sm text-muted-foreground">Required for creating invoices.</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 flex items-start gap-3">
+                                        <Smartphone className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+                                        <div className="space-y-1">
+                                            <h4 className="text-sm font-semibold text-orange-500">Security Note</h4>
+                                            <p className="text-xs text-muted-foreground">Ensure you have verified your domain and enabled 2FA in your Cryptomus account before generating API keys.</p>
                                         </div>
                                     </div>
                                 </CardContent>
