@@ -43,17 +43,22 @@ const itemVariants = {
 
 interface ModeratorsClientProps {
   moderators: Moderator[];
+  currentUserId: string;
+  currentUserRole: string;
 }
 
 import { InviteModeratorSheet } from './InviteModeratorSheet';
 import { ResetPasswordDialog } from './ResetPasswordDialog';
+import { EditModeratorSheet } from './EditModeratorSheet';
 
-export default function ModeratorsClient({ moderators }: ModeratorsClientProps) {
+export default function ModeratorsClient({ moderators, currentUserId, currentUserRole }: ModeratorsClientProps) {
   const [activeTab, setActiveTab] = useState<'team' | 'audit'>('team');
   const [searchQuery, setSearchQuery] = useState('');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [editModeratorOpen, setEditModeratorOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<{id: string, name: string} | null>(null);
+  const [selectedModerator, setSelectedModerator] = useState<Moderator | null>(null);
   const router = useRouter();
 
   const handleStatusToggle = async (id: string, currentStatus: boolean) => {
@@ -94,6 +99,14 @@ export default function ModeratorsClient({ moderators }: ModeratorsClientProps) 
             userName={selectedUser.name}
         />
       )}
+      
+      <EditModeratorSheet
+        open={editModeratorOpen}
+        onOpenChange={setEditModeratorOpen}
+        moderator={selectedModerator}
+        currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
+      />
 
       {/* Header */}
       <motion.div variants={itemVariants} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -215,7 +228,14 @@ export default function ModeratorsClient({ moderators }: ModeratorsClientProps) 
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setSelectedModerator(mod);
+                            setEditModeratorOpen(true);
+                          }}
+                        >
+                          <Edit className="mr-2 h-4 w-4" />Edit
+                        </DropdownMenuItem>
                         <DropdownMenuItem 
                             onClick={() => {
                                 setSelectedUser({ id: mod.id, name: mod.profile?.full_name || 'User' });

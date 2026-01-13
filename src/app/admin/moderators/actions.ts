@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 
 export type Moderator = {
@@ -13,9 +14,13 @@ export type Moderator = {
   created_at: string;
   profile?: {
     full_name: string;
-    email: string; // From auth.users join via profiles view if possible, or just what we have
+    email?: string;
     avatar_url: string | null;
     phone_number: string | null;
+    blood_group?: string;
+    country?: string;
+    city?: string;
+    address?: string;
   };
 };
 
@@ -27,20 +32,14 @@ export async function getModerators() {
     .from('admin_users')
     .select(`
       *,
-      profile:profiles(full_name, avatar_url, phone_number)
+      profile:profiles(*)
     `)
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Error fetching moderators:', error);
+    console.error('Error fetching moderators:', error.message || error);
     return [];
   }
-
-  // Note: Email is strictly in auth.users. 
-  // Getting email usually requires a secure view or RPC if we don't sync it to profiles.
-  // For now, we will rely on profile data. if email is needed, we might need a separate strategy 
-  // (e.g. syncing email to profiles on signup/update or using an admin-only RPC).
-  // Assuming profile might have email if we synced it, or we just show name/phone.
 
   return data as unknown as Moderator[];
 }
@@ -59,8 +58,6 @@ export async function toggleModeratorStatus(id: string, isActive: boolean) {
 
   revalidatePath('/admin/moderators');
 }
-
-import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function inviteModerator(email: string, role: string, countries: string[]) {
   const supabaseAdmin = createAdminClient();
@@ -119,3 +116,124 @@ export async function updateModeratorPassword(id: string, password: string) {
 
   return { success: true };
 }
+
+// Role hierarchy for permission checks
+const ROLE_HIERARCHY: Record<string, number> = {
+  'super_admin': 4,
+  'admin': 3,
+  'moderator': 2,
+  'finance': 1,
+  'support': 0,
+};
+
+export async function updateModerator(
+  currentUserId: string,
+  moderatorId: string, 
+  data: { 
+    role?: string; 
+    assigned_countries?: string[]; 
+    assigned_cities?: string[];
+    profile?: {
+      full_name?: string;
+      phone_number?: string;
+      blood_group?: string;
+      country?: string;
+      city?: string;
+      address?: string;
+    };
+  }
+) {
+  const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
+
+  // Get current user's role
+  const { data: currentUser, error: currentUserError } = await supabase
+    .from('admin_users')
+    .select('role')
+    .eq('id', currentUserId)
+    .single();
+
+  if (currentUserError || !currentUser) {
+    return { success: false, message: 'Failed to verify your permissions' };
+  }
+
+  const currentUserLevel = ROLE_HIERARCHY[currentUser.role] ?? 0;
+
+  // Only super_admin and admin can change roles
+  if (currentUserLevel < ROLE_HIERARCHY['admin']) {
+    return { success: false, message: 'You do not have permission to edit moderators' };
+  }
+
+  // Get target moderator's current role
+  const { data: targetMod, error: targetError } = await supabase
+    .from('admin_users')
+    .select('role')
+    .eq('id', moderatorId)
+    .single();
+
+  if (targetError || !targetMod) {
+    return { success: false, message: 'Moderator not found' };
+  }
+
+  const targetLevel = ROLE_HIERARCHY[targetMod.role] ?? 0;
+
+  // Can't edit someone with equal or higher role (unless super_admin)
+  if (currentUserLevel <= targetLevel && currentUser.role !== 'super_admin') {
+    return { success: false, message: 'Cannot edit a user with equal or higher role' };
+  }
+
+  // If changing role, check the new role is below current user's level
+  if (data.role) {
+    const newRoleLevel = ROLE_HIERARCHY[data.role] ?? 0;
+    if (newRoleLevel >= currentUserLevel && currentUser.role !== 'super_admin') {
+      return { success: false, message: 'Cannot assign a role equal to or higher than your own' };
+    }
+  }
+
+  // Update admin_users table (role & countries)
+  const { error: updateError } = await supabaseAdmin
+    .from('admin_users')
+    .update({
+      ...(data.role && { role: data.role }),
+      ...(data.assigned_countries && { assigned_countries: data.assigned_countries }),
+      ...(data.assigned_cities && { assigned_cities: data.assigned_cities }),
+    })
+    .eq('id', moderatorId);
+
+  if (updateError) {
+    return { success: false, message: updateError.message };
+  }
+
+  // Update profiles table if profile data provided
+  // Only update fields that exist in the profiles table
+  if (data.profile) {
+    const profileUpdate: Record<string, any> = {};
+    if (data.profile.full_name) profileUpdate.full_name = data.profile.full_name;
+    if (data.profile.phone_number !== undefined) profileUpdate.phone_number = data.profile.phone_number;
+    // Note: blood_group, country, city may not exist in all schemas
+    // Add them only if they're commonly used in your profiles table
+    if (data.profile.blood_group !== undefined) profileUpdate.blood_group = data.profile.blood_group;
+    if (data.profile.country !== undefined) profileUpdate.country = data.profile.country;
+    if (data.profile.city !== undefined) profileUpdate.city = data.profile.city;
+    // Skip 'address' as it doesn't exist in the database schema
+    
+    if (Object.keys(profileUpdate).length > 0) {
+      profileUpdate.updated_at = new Date().toISOString();
+      
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .update(profileUpdate)
+        .eq('id', moderatorId);
+
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        // Don't fail the whole operation, admin_users was already updated
+      }
+    }
+  }
+
+  revalidatePath('/admin/moderators');
+  return { success: true };
+}
+
+
