@@ -5,6 +5,9 @@ import "./globals.css";
 export const metadata = {
   title: "BloodReq - Save Lives, One Drop at a Time",
   description: "Connect blood donors with patients in need. Real-time matching, verified requests, and a community that saves lives every day.",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({

@@ -24,12 +24,13 @@ import {
   ChevronLeft,
   Search,
   Command,
+  CreditCard,
 } from "lucide-react";
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
   { icon: Droplets, label: 'Blood Requests', href: '/admin/blood-requests' },
-  { icon: HandCoins, label: 'Financial', href: '/admin/financial-requests' },
+  { icon: HandCoins, label: 'Fundraisers', href: '/admin/fundraisers' },
   { icon: Heart, label: 'Donations', href: '/admin/donations' },
   { icon: Users, label: 'Users', href: '/admin/users' },
   { icon: MapPin, label: 'Locations', href: '/admin/locations' },
@@ -39,6 +40,7 @@ const menuItems = [
   { icon: BarChart3, label: 'Reports', href: '/admin/reports' },
   { icon: Bell, label: 'Notifications', href: '/admin/notifications' },
   { icon: Mail, label: 'Email Settings', href: '/admin/email' },
+  { icon: CreditCard, label: 'Payment Settings', href: '/admin/payment-settings' },
   { icon: Settings, label: 'Settings', href: '/admin/settings' },
 ];
 
@@ -77,9 +79,9 @@ export function Sidebar() {
             <motion.div 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-rose-500 to-red-600 shadow-lg shadow-primary/25"
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-lg shadow-primary/25 overflow-hidden"
             >
-              <Droplets className="h-5 w-5 text-white" fill="white" />
+              <img src="/favicon.ico" alt="BloodReq" className="h-6 w-6 object-contain" />
             </motion.div>
             <AnimatePresence>
               {!collapsed && (
