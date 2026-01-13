@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS notifications_log (
   message TEXT NOT NULL,
   segment TEXT DEFAULT 'All',
   blood_group TEXT,
-  sent_by UUID REFERENCES auth.users(id),
+  sent_by UUID REFERENCES profiles(id), -- Changed to profiles for easier joining
   recipients INTEGER,
   onesignal_id TEXT,
   success BOOLEAN DEFAULT true,

@@ -68,14 +68,9 @@ export async function sendAdminNotification(data: NotificationFormData) {
 export async function getNotificationHistory(limit = 20) {
   const supabase = await createClient();
   
-  const { data, error } = await supabase
+  const { data: logs, error } = await supabase
     .from('notifications_log')
-    .select(`
-      *,
-      admin_users:sent_by (
-        full_name
-      )
-    `)
+    .select('*')
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -84,7 +79,25 @@ export async function getNotificationHistory(limit = 20) {
     return [];
   }
 
-  return data || [];
+  if (!logs || logs.length === 0) return [];
+
+  // Fetch profiles for sender names manually to avoid complex joins/FK issues
+  const userIds = [...new Set(logs.map(log => log.sent_by).filter(Boolean))];
+  
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .in('id', userIds);
+
+  const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
+
+  // Map logs to include sender name
+  return logs.map(log => ({
+    ...log,
+    admin_users: {
+        full_name: profileMap.get(log.sent_by) || 'Unknown'
+    }
+  }));
 }
 
 /**
