@@ -22,6 +22,7 @@ import { Loader2, User, Droplet, Building2, MapPin, Phone, FileText, Zap } from 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { PlacesAutocompleteWrapper } from "@/components/ui/places-autocomplete";
 
 // Field container with improved styling - Moved outside to prevent re-render focus loss
 const Field = ({ label, icon: Icon, required, children }: any) => (
@@ -187,11 +188,19 @@ export default function CreateRequestSheet({
                     <div className="grid gap-5 md:grid-cols-2">
                         <div className="md:col-span-2">
                             <Field label="Hospital / Location" icon={Building2} required>
-                                <Input 
+                                <PlacesAutocompleteWrapper 
                                     value={formData.hospital} 
-                                    onChange={(e) => handleChange('hospital', e.target.value)} 
-                                    placeholder="Hospital Name, Room No, Area"
-                                    className="h-11 rounded-xl bg-secondary/30 border-transparent focus:border-primary/20 focus:bg-background transition-all"
+                                    onChange={(val) => handleChange('hospital', val)}
+                                    placeholder="Search hospital or clinic..."
+                                    searchTypes={['hospital', 'doctor', 'health']}
+                                    onSelect={(data) => {
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            hospital: data.address, // or just the name if prefer
+                                            city: data.city || prev.city, 
+                                            // coordinates could be stored if we added fields for them
+                                        }));
+                                    }}
                                 />
                             </Field>
                         </div>

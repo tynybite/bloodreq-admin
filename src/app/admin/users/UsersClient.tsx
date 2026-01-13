@@ -136,8 +136,9 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
+        searchQuery === '' ||
         user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        user.email?.toLowerCase().includes(searchQuery.toLowerCase()) || // Note: email might not be in profile if not joined, assume it is for now
+        user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         user.phone_number?.includes(searchQuery);
     const matchesRole = filterRole === 'all' || user.role === filterRole;
     const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
