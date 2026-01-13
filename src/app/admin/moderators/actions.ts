@@ -20,14 +20,14 @@ export type Moderator = {
 };
 
 export async function getModerators() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   
   // Join admin_users with profiles
   const { data, error } = await supabase
     .from('admin_users')
     .select(`
       *,
-      profile:profiles!inner(full_name, avatar_url, phone_number)
+      profile:profiles(full_name, avatar_url, phone_number)
     `)
     .order('created_at', { ascending: false });
 
@@ -68,7 +68,8 @@ export async function inviteModerator(email: string, role: string, countries: st
 
   // 1. Invite User
   const { data: authData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    data: { role: 'admin' } // Mark as admin in metadata initially if needed
+    data: { role: 'admin' }, // Mark as admin in metadata initially if needed
+    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`
   });
 
   if (inviteError) {
@@ -83,7 +84,7 @@ export async function inviteModerator(email: string, role: string, countries: st
   // 2. Add to admin_users table
   // We need to check if profile exists (managed by trigger usually)
   // But for admin_users, we explicitly insert.
-  const { error: dbError } = await supabase
+  const { error: dbError } = await supabaseAdmin
     .from('admin_users')
     .insert({
       id: authData.user.id,
@@ -101,5 +102,20 @@ export async function inviteModerator(email: string, role: string, countries: st
   }
 
   revalidatePath('/admin/moderators');
+  return { success: true };
+}
+
+export async function updateModeratorPassword(id: string, password: string) {
+  const supabaseAdmin = createAdminClient();
+  
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(
+    id,
+    { password: password }
+  );
+
+  if (error) {
+    return { success: false, message: error.message };
+  }
+
   return { success: true };
 }

@@ -44,12 +44,16 @@ const menuItems = [
   { icon: Settings, label: 'Settings', href: '/admin/settings' },
 ];
 
+import { filterMenuItems, AdminRole } from "@/lib/rbac";
+
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { collapsed, setCollapsed } = useSidebar();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [role, setRole] = useState<AdminRole | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const supabase = createClient();
 
   const handleSignOut = async () => {
@@ -59,7 +63,40 @@ export function Sidebar() {
 
   useEffect(() => {
     setMounted(true);
+    
+    // Fetch User Role
+    const fetchRole = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            // Check admin_users table first
+            const { data: adminUser } = await supabase
+                .from('admin_users')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+            
+            if (adminUser) {
+                setRole(adminUser.role as AdminRole);
+            } else {
+                // Check profiles if not in admin_users (fallback)
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', user.id)
+                    .single();
+                if (profile && profile.role === 'admin') {
+                     // Legacy/Simple admin check - default to regular admin permissions if strict role missing
+                     setRole('admin');
+                }
+            }
+        }
+        setIsLoading(false);
+    };
+
+    fetchRole();
   }, []);
+
+  const filteredMenuItems = role ? filterMenuItems(menuItems, role) : [];
 
   if (!mounted) return null;
 
@@ -151,7 +188,7 @@ export function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-2 space-y-1">
-          {menuItems.map((item) => {
+          {filteredMenuItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
             
             return (
