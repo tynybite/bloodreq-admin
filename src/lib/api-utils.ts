@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { getFirebaseAuth } from '@/lib/auth/firebase-admin';
 
 // ============================================
 // Response Helpers
@@ -82,10 +82,21 @@ export async function parseBody<T>(
 }
 
 // ============================================
-// Auth Helpers
+// Auth Helpers (Firebase)
 // ============================================
 
-export async function getAuthUser(request: Request) {
+export interface AuthUser {
+  id: string;
+  email?: string;
+  name?: string;
+  picture?: string;
+  emailVerified: boolean;
+}
+
+export async function getAuthUser(request: Request): Promise<{
+  user: AuthUser | null;
+  error: NextResponse | null;
+}> {
   const authHeader = request.headers.get('Authorization');
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -93,15 +104,24 @@ export async function getAuthUser(request: Request) {
   }
 
   const token = authHeader.replace('Bearer ', '');
-  const supabase = await createClient();
 
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-
-  if (error || !user) {
+  try {
+    const decodedToken = await getFirebaseAuth().verifyIdToken(token);
+    
+    return {
+      user: {
+        id: decodedToken.uid,
+        email: decodedToken.email,
+        name: decodedToken.name,
+        picture: decodedToken.picture,
+        emailVerified: decodedToken.email_verified || false,
+      },
+      error: null,
+    };
+  } catch (error) {
+    console.error('Firebase token verification error:', error);
     return { user: null, error: errorResponse('Invalid or expired token', 'AUTH_EXPIRED', 401) };
   }
-
-  return { user, error: null };
 }
 
 // ============================================

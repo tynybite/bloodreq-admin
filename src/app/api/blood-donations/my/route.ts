@@ -1,82 +1,60 @@
 import { NextRequest } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getCollection, Collections } from '@/lib/db/mongodb';
 import { successResponse, errorResponse, getAuthUser } from '@/lib/api-utils';
 
 // GET /api/blood-donations/my - Get user's donation history
 export async function GET(request: NextRequest) {
-  // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
   try {
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status'); // offered, pending_confirmation, completed, rejected
+    const status = searchParams.get('status');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50);
 
-    const supabase = await createClient();
+    const donationsCollection = await getCollection(Collections.DONATIONS);
+    const requestsCollection = await getCollection(Collections.BLOOD_REQUESTS);
 
-    // Build query
-    let query = supabase
-      .from('blood_donations')
-      .select(`
-        *,
-        request:blood_requests!blood_donations_request_id_fkey(
-          id, patient_name, blood_group, hospital, city, urgency
-        )
-      `, { count: 'exact' })
-      .eq('donor_id', user!.id)
-      .order('created_at', { ascending: false });
+    const filter: any = { donor_id: user!.id };
+    if (status) filter.status = status;
 
-    // Filter by status
-    if (status) {
-      query = query.eq('status', status);
-    }
-
-    // Pagination
     const offset = (page - 1) * limit;
-    query = query.range(offset, offset + limit - 1);
+    const total = await donationsCollection.countDocuments(filter);
+    const donations = await donationsCollection
+      .find(filter)
+      .sort({ created_at: -1 })
+      .skip(offset)
+      .limit(limit)
+      .toArray();
 
-    const { data: donations, error: queryError, count } = await query;
-
-    if (queryError) {
-      return errorResponse('Failed to fetch donations', 'DATABASE_ERROR', 500);
-    }
-
-    // Calculate stats
-    const { count: totalCompleted } = await supabase
-      .from('blood_donations')
-      .select('*', { count: 'exact', head: true })
-      .eq('donor_id', user!.id)
-      .eq('status', 'completed');
-
-    const { count: pendingConfirmation } = await supabase
-      .from('blood_donations')
-      .select('*', { count: 'exact', head: true })
-      .eq('donor_id', user!.id)
-      .eq('status', 'pending_confirmation');
-
-    // Sum units donated
-    const { data: unitsData } = await supabase
-      .from('blood_donations')
-      .select('units_donated')
-      .eq('donor_id', user!.id)
-      .eq('status', 'completed');
-
-    const totalUnits = (unitsData || []).reduce((sum: number, d: any) => sum + (d.units_donated || 1), 0);
+    // Fetch request details for each donation
+    const donationsWithDetails = await Promise.all(
+      donations.map(async (d: any) => {
+        const request = await requestsCollection.findOne({ _id: d.request_id });
+        return {
+          id: d._id?.toString(),
+          status: d.status,
+          message: d.message,
+          created_at: d.created_at,
+          request: request ? {
+            id: request._id?.toString(),
+            patient_name: request.patient_name,
+            blood_group: request.blood_group,
+            hospital: request.hospital,
+            city: request.city,
+          } : null,
+        };
+      })
+    );
 
     return successResponse({
-      donations: donations || [],
-      stats: {
-        total_donations: totalCompleted || 0,
-        pending_confirmation: pendingConfirmation || 0,
-        total_units: totalUnits,
-      },
+      donations: donationsWithDetails,
       pagination: {
         page,
         limit,
-        total: count || 0,
-        total_pages: Math.ceil((count || 0) / limit),
+        total,
+        total_pages: Math.ceil(total / limit),
       },
     });
   } catch (error) {

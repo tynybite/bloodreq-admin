@@ -228,10 +228,10 @@ export default function FundraiserDetailSheet({
                  </h3>
                  {fundraiser.fundraiser_documents && fundraiser.fundraiser_documents.length > 0 ? (
                      <div className="grid gap-2">
-                         {fundraiser.fundraiser_documents.map((doc: any) => (
+                         {fundraiser.fundraiser_documents.map((doc: any, index: number) => (
                              <a 
-                                key={doc.id} 
-                                href={doc.document_url} 
+                                key={doc.id || doc.url || index} 
+                                href={doc.document_url || doc.url} 
                                 target="_blank" 
                                 className="flex items-center gap-2 p-2 rounded-lg border border-border/50 hover:bg-secondary/50 text-sm text-blue-500 hover:underline"
                              >

@@ -1,98 +1,63 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
-import { 
-  successResponse, 
-  errorResponse, 
-  parseBody, 
-  emailSchema, 
-  passwordSchema, 
-  phoneSchema, 
-  bloodGroupSchema 
-} from '@/lib/api-utils';
+import { getCollection, Collections } from '@/lib/db/mongodb';
+import { successResponse, errorResponse, getAuthUser, parseBody } from '@/lib/api-utils';
 
-// Validation schema for email signup
+// POST /api/auth/signup - Create user profile after Firebase signup
 const signupSchema = z.object({
-  email: emailSchema,
-  password: passwordSchema,
   full_name: z.string().min(2, 'Full name is required'),
-  phone_number: phoneSchema,
-  blood_group: bloodGroupSchema,
+  phone_number: z.string().min(7, 'Phone number is required'),
+  blood_group: z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']),
   country: z.string().min(2, 'Country is required'),
   city: z.string().min(2, 'City is required'),
   area: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
-  // Parse and validate request body
+  // User must already be authenticated with Firebase
+  const { user, error: authError } = await getAuthUser(request);
+  if (authError) return authError;
+
   const { data, error: parseError } = await parseBody(request, signupSchema);
   if (parseError) return parseError;
 
-  const { email, password, full_name, phone_number, blood_group, country, city, area } = data;
-
   try {
-    const supabase = await createClient();
+    const usersCollection = await getCollection(Collections.USERS);
 
-    // Sign up with Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name,
-          phone_number,
-          blood_group,
-          country,
-          city,
-          area,
-        },
-      },
-    });
-
-    if (authError) {
-      // Handle specific Supabase auth errors
-      if (authError.message.includes('already registered')) {
-        return errorResponse('An account with this email already exists', 'USER_EXISTS', 409);
-      }
-      return errorResponse(authError.message, 'AUTH_ERROR', 400);
+    // Check if user already exists
+    const existingUser = await usersCollection.findOne({ _id: user!.id });
+    if (existingUser) {
+      return errorResponse('User profile already exists', 'ALREADY_EXISTS', 409);
     }
 
-    if (!authData.user) {
-      return errorResponse('Failed to create user', 'AUTH_ERROR', 500);
-    }
-
-    // Create profile in profiles table
-    // Note: This can also be done via a database trigger on auth.users insert
-    const { error: profileError } = await supabase.from('profiles').insert({
-      id: authData.user.id,
-      full_name,
-      phone_number,
-      blood_group,
-      country,
-      city,
-      area,
-      status: 'active',
+    // Create user profile
+    const newUser = {
+      _id: user!.id,
+      email: user!.email,
+      full_name: data.full_name,
+      phone_number: data.phone_number,
+      blood_group: data.blood_group,
+      country: data.country,
+      city: data.city,
+      area: data.area,
       is_available_to_donate: true,
-    });
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
 
-    if (profileError) {
-      console.error('Profile creation error:', profileError);
-      // Don't fail the signup - profile can be created later
-    }
+    await usersCollection.insertOne(newUser);
 
     return successResponse(
       {
-        user: {
-          id: authData.user.id,
-          email: authData.user.email,
-        },
-        session: authData.session,
+        id: user!.id,
+        email: user!.email,
+        ...data,
       },
-      'Account created. Please verify your email.',
+      'Profile created successfully',
       201
     );
   } catch (error) {
     console.error('Signup error:', error);
-    return errorResponse('An unexpected error occurred', 'SERVER_ERROR', 500);
+    return errorResponse('Failed to create profile', 'SERVER_ERROR', 500);
   }
 }

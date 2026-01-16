@@ -1,79 +1,96 @@
 import { NextRequest } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getCollection, Collections } from '@/lib/db/mongodb';
 import { successResponse, errorResponse, getAuthUser } from '@/lib/api-utils';
 
 // GET /api/leaderboard - Get donation leaderboard
 export async function GET(request: NextRequest) {
-  // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
   try {
     const { searchParams } = new URL(request.url);
-    const period = searchParams.get('period') || 'all'; // all, month, year
-    const country = searchParams.get('country');
+    const period = searchParams.get('period') || 'all'; // all, monthly, weekly
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
 
-    const supabase = await createClient();
+    const donationsCollection = await getCollection(Collections.DONATIONS);
+    const usersCollection = await getCollection(Collections.USERS);
 
-    // Build query for top donors
-    let query = supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url, country, city, total_donations, points, badge_tier')
-      .eq('status', 'active')
-      .gt('total_donations', 0)
-      .order('total_donations', { ascending: false })
-      .limit(limit);
-
-    if (country) {
-      query = query.eq('country', country);
+    // Build date filter for period
+    let dateFilter = {};
+    const now = new Date();
+    if (period === 'weekly') {
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      dateFilter = { created_at: { $gte: weekAgo } };
+    } else if (period === 'monthly') {
+      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      dateFilter = { created_at: { $gte: monthAgo } };
     }
 
-    const { data: leaders, error: queryError } = await query;
+    // Aggregate donations by donor
+    const leaderboard = await donationsCollection.aggregate([
+      { $match: { status: 'completed', ...dateFilter } },
+      { $group: { _id: '$donor_id', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: limit },
+    ]).toArray();
 
-    if (queryError) {
-      return errorResponse('Failed to fetch leaderboard', 'DATABASE_ERROR', 500);
-    }
+    // Fetch user details
+    const leaderboardWithUsers = await Promise.all(
+      leaderboard.map(async (entry: any, index: number) => {
+        const userDoc = await usersCollection.findOne({ _id: entry._id });
+        
+        let badgeTier = 'none';
+        if (entry.count >= 31) badgeTier = 'platinum';
+        else if (entry.count >= 16) badgeTier = 'gold';
+        else if (entry.count >= 6) badgeTier = 'silver';
+        else if (entry.count >= 1) badgeTier = 'bronze';
 
-    // Get current user's rank
-    let userRank = null;
-    if (user) {
-      const { count } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active')
-        .gt('total_donations', 0);
+        return {
+          rank: index + 1,
+          user_id: entry._id,
+          full_name: userDoc?.full_name || 'Anonymous',
+          avatar_url: userDoc?.avatar_url,
+          blood_group: userDoc?.blood_group,
+          donation_count: entry.count,
+          points: entry.count * 100,
+          badge_tier: badgeTier,
+          is_current_user: entry._id === user!.id,
+        };
+      })
+    );
 
-      // Find user's position
-      const { data: userProfile } = await supabase
-        .from('profiles')
-        .select('total_donations')
-        .eq('id', user.id)
-        .single();
-
-      if (userProfile) {
-        const { count: higherCount } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .gt('total_donations', userProfile.total_donations || 0);
-
-        userRank = {
-          rank: (higherCount || 0) + 1,
-          total_donors: count || 0,
-          donations: userProfile.total_donations || 0,
+    // Get current user's rank if not in top N
+    let currentUserRank = leaderboardWithUsers.find((e: any) => e.is_current_user);
+    if (!currentUserRank) {
+      const userDonationCount = await donationsCollection.countDocuments({
+        donor_id: user!.id,
+        status: 'completed',
+        ...dateFilter,
+      });
+      
+      if (userDonationCount > 0) {
+        const higherCount = await donationsCollection.aggregate([
+          { $match: { status: 'completed', ...dateFilter } },
+          { $group: { _id: '$donor_id', count: { $sum: 1 } } },
+          { $match: { count: { $gt: userDonationCount } } },
+        ]).toArray();
+        
+        const userDoc = await usersCollection.findOne({ _id: user!.id });
+        currentUserRank = {
+          rank: higherCount.length + 1,
+          user_id: user!.id,
+          full_name: userDoc?.full_name || 'You',
+          avatar_url: userDoc?.avatar_url,
+          donation_count: userDonationCount,
+          points: userDonationCount * 100,
+          is_current_user: true,
         };
       }
     }
 
-    // Add rank to each leader
-    const leadersWithRank = (leaders || []).map((leader: any, index: number) => ({
-      ...leader,
-      rank: index + 1,
-    }));
-
     return successResponse({
-      leaders: leadersWithRank,
-      user_rank: userRank,
+      leaderboard: leaderboardWithUsers,
+      current_user: currentUserRank,
       period,
     });
   } catch (error) {

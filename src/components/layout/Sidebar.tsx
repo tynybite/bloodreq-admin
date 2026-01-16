@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { createClient } from "@/lib/supabase/client";
+
 import { useSidebar } from "./SidebarContext";
 import { 
   LayoutDashboard, 
@@ -45,6 +45,8 @@ const menuItems = [
 ];
 
 import { filterMenuItems, AdminRole } from "@/lib/rbac";
+import { useUser } from "@/contexts/UserContext";
+import { auth } from "@/lib/auth/firebase-client";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -52,48 +54,19 @@ export function Sidebar() {
   const { collapsed, setCollapsed } = useSidebar();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [role, setRole] = useState<AdminRole | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const supabase = createClient();
+  
+  const { user } = useUser();
+  // Role is now part of user context (defaulted or fetched)
+  const role = user?.role as AdminRole || 'admin'; 
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await auth.signOut();
+    await fetch('/api/auth/signout', { method: 'POST' });
     router.replace('/login');
   };
 
   useEffect(() => {
     setMounted(true);
-    
-    // Fetch User Role
-    const fetchRole = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            // Check admin_users table first
-            const { data: adminUser } = await supabase
-                .from('admin_users')
-                .select('role')
-                .eq('id', user.id)
-                .single();
-            
-            if (adminUser) {
-                setRole(adminUser.role as AdminRole);
-            } else {
-                // Check profiles if not in admin_users (fallback)
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', user.id)
-                    .single();
-                if (profile && profile.role === 'admin') {
-                     // Legacy/Simple admin check - default to regular admin permissions if strict role missing
-                     setRole('admin');
-                }
-            }
-        }
-        setIsLoading(false);
-    };
-
-    fetchRole();
   }, []);
 
   const filteredMenuItems = role ? filterMenuItems(menuItems, role) : [];

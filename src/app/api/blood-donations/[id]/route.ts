@@ -1,56 +1,107 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
-import { successResponse, errorResponse, getAuthUser, parseBody } from '@/lib/api-utils';
+import { getCollection, Collections, ObjectId } from '@/lib/db/mongodb';
+import { successResponse, errorResponse, getAuthUser, parseBody, bloodGroupSchema } from '@/lib/api-utils';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// DELETE /api/blood-donations/:id - Cancel donation offer (donor only)
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+// GET /api/blood-donations/:id - Get donation details
+export async function GET(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   
-  // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
   try {
-    const supabase = await createClient();
+    const donationsCollection = await getCollection(Collections.DONATIONS);
+    const requestsCollection = await getCollection(Collections.BLOOD_REQUESTS);
+    const usersCollection = await getCollection(Collections.USERS);
 
-    // Check if donation exists and user is the donor
-    const { data: donation, error: fetchError } = await supabase
-      .from('blood_donations')
-      .select('id, donor_id, status')
-      .eq('id', id)
-      .single();
+    const donation = await donationsCollection.findOne({ _id: new ObjectId(id) });
 
-    if (fetchError || !donation) {
+    if (!donation) {
       return errorResponse('Donation not found', 'NOT_FOUND', 404);
     }
 
-    if (donation.donor_id !== user!.id) {
-      return errorResponse('You can only cancel your own donation offers', 'FORBIDDEN', 403);
+    // Only donor or requester can see details
+    const request = await requestsCollection.findOne({ _id: new ObjectId(donation.request_id) });
+    if (donation.donor_id !== user!.id && request?.requester_id !== user!.id) {
+      return errorResponse('Access denied', 'FORBIDDEN', 403);
     }
 
-    // Can only cancel if status is 'offered'
-    if (donation.status !== 'offered') {
-      return errorResponse('Can only cancel pending offers', 'CONFLICT', 409);
-    }
+    const donor = await usersCollection.findOne({ _id: donation.donor_id });
 
-    // Delete the donation offer
-    const { error: deleteError } = await supabase
-      .from('blood_donations')
-      .delete()
-      .eq('id', id);
-
-    if (deleteError) {
-      return errorResponse('Failed to cancel donation', 'DATABASE_ERROR', 500);
-    }
-
-    return successResponse({ cancelled: true }, 'Donation offer cancelled');
+    return successResponse({
+      id: donation._id?.toString(),
+      status: donation.status,
+      message: donation.message,
+      created_at: donation.created_at,
+      donor: donor ? {
+        id: donor._id,
+        full_name: donor.full_name,
+        blood_group: donor.blood_group,
+        phone_number: donor.phone_number,
+      } : null,
+      request: request ? {
+        id: request._id?.toString(),
+        patient_name: request.patient_name,
+        blood_group: request.blood_group,
+        hospital: request.hospital,
+      } : null,
+    });
   } catch (error) {
-    console.error('Cancel donation error:', error);
+    console.error('Get donation error:', error);
+    return errorResponse('An unexpected error occurred', 'SERVER_ERROR', 500);
+  }
+}
+
+// PATCH /api/blood-donations/:id - Update donation status
+const updateDonationSchema = z.object({
+  status: z.enum(['accepted', 'completed', 'cancelled']),
+});
+
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  const { id } = await params;
+  
+  const { user, error: authError } = await getAuthUser(request);
+  if (authError) return authError;
+
+  const { data, error: parseError } = await parseBody(request, updateDonationSchema);
+  if (parseError) return parseError;
+
+  try {
+    const donationsCollection = await getCollection(Collections.DONATIONS);
+    const requestsCollection = await getCollection(Collections.BLOOD_REQUESTS);
+
+    const donation = await donationsCollection.findOne({ _id: new ObjectId(id) });
+    if (!donation) {
+      return errorResponse('Donation not found', 'NOT_FOUND', 404);
+    }
+
+    const bloodRequest = await requestsCollection.findOne({ _id: new ObjectId(donation.request_id) });
+
+    // Only requester can accept/complete, donor can cancel
+    if (data.status === 'cancelled' && donation.donor_id !== user!.id) {
+      return errorResponse('Only donor can cancel', 'FORBIDDEN', 403);
+    }
+    if (['accepted', 'completed'].includes(data.status) && bloodRequest?.requester_id !== user!.id) {
+      return errorResponse('Only requester can accept/complete', 'FORBIDDEN', 403);
+    }
+
+    const result = await donationsCollection.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: { status: data.status, updated_at: new Date() } },
+      { returnDocument: 'after' }
+    );
+
+    return successResponse({
+      id: result?._id?.toString(),
+      status: result?.status,
+    }, `Donation ${data.status}`);
+  } catch (error) {
+    console.error('Update donation error:', error);
     return errorResponse('An unexpected error occurred', 'SERVER_ERROR', 500);
   }
 }

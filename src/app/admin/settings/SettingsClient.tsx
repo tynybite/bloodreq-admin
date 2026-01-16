@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Settings,
@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from 'sonner';
 import { updateSettings } from './actions';
+import { useTheme } from 'next-themes';
 
 // Animation variants
 const containerVariants = {
@@ -72,6 +73,7 @@ function SettingsSection({ title, description, icon: Icon, gradient, children }:
 export default function SettingsClient({ initialSettings }: { initialSettings: any }) {
   const [showKey, setShowKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const { theme: currentTheme, setTheme } = useTheme();
   
   // Initialize state from props or defaults
   const [general, setGeneral] = useState(initialSettings?.general || {
@@ -95,17 +97,24 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
   });
   
   const [appearance, setAppearance] = useState(initialSettings?.appearance || {
-      theme: "light",
+      theme: currentTheme || "dark",
       primaryColor: "#dc2626",
       enableAnimations: true
   });
   
   const [apiKeys, setApiKeys] = useState(initialSettings?.apiKeys || {
-      supabaseUrl: "",
-      supabaseAnonKey: "",
+      mongodbUri: "",
+      firebaseProjectId: "",
       admobAppId: "",
       facebookAppId: ""
   });
+
+  // Apply theme changes immediately
+  useEffect(() => {
+    if (appearance.theme && appearance.theme !== currentTheme) {
+      setTheme(appearance.theme);
+    }
+  }, [appearance.theme, currentTheme, setTheme]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -361,22 +370,22 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
       >
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-2">
-            <Label>Supabase URL</Label>
+            <Label>MongoDB URI</Label>
             <Input 
-                value={apiKeys.supabaseUrl} 
-                onChange={(e) => setApiKeys({...apiKeys, supabaseUrl: e.target.value})}
-                placeholder="https://xxx.supabase.co" 
+                value={apiKeys.mongodbUri} 
+                onChange={(e) => setApiKeys({...apiKeys, mongodbUri: e.target.value})}
+                placeholder="mongodb+srv://..." 
                 className="rounded-xl bg-secondary/50" 
             />
           </div>
           <div className="space-y-2">
-            <Label>Supabase Anon Key</Label>
+            <Label>Firebase Project ID</Label>
             <div className="relative">
               <Input 
                 type={showKey ? "text" : "password"} 
-                value={apiKeys.supabaseAnonKey} 
-                onChange={(e) => setApiKeys({...apiKeys, supabaseAnonKey: e.target.value})}
-                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." 
+                value={apiKeys.firebaseProjectId} 
+                onChange={(e) => setApiKeys({...apiKeys, firebaseProjectId: e.target.value})}
+                placeholder="my-project-id" 
                 className="rounded-xl bg-secondary/50 pr-10" 
               />
               <Button

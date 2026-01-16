@@ -1,50 +1,45 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { getCollection, Collections } from '@/lib/db/mongodb';
 import { successResponse, errorResponse, getAuthUser, parseBody } from '@/lib/api-utils';
 
-// PATCH /api/profile/location - Update user's location
-const updateLocationSchema = z.object({
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
+// PATCH /api/profile/location - Update user location
+const locationSchema = z.object({
   country: z.string().min(2).optional(),
   city: z.string().min(2).optional(),
   area: z.string().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
 });
 
 export async function PATCH(request: NextRequest) {
-  // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
-  // Parse and validate request body
-  const { data, error: parseError } = await parseBody(request, updateLocationSchema);
+  const { data, error: parseError } = await parseBody(request, locationSchema);
   if (parseError) return parseError;
 
   try {
-    const supabase = await createClient();
+    const usersCollection = await getCollection(Collections.USERS);
+    
+    const updateData: any = { updated_at: new Date() };
+    if (data.country) updateData.country = data.country;
+    if (data.city) updateData.city = data.city;
+    if (data.area !== undefined) updateData.area = data.area;
+    if (data.latitude) updateData.latitude = data.latitude;
+    if (data.longitude) updateData.longitude = data.longitude;
 
-    // Update profile with new location
-    const { data: profile, error: updateError } = await supabase
-      .from('profiles')
-      .update({
-        latitude: data.latitude,
-        longitude: data.longitude,
-        country: data.country,
-        city: data.city,
-        area: data.area,
-        location_updated_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', user!.id)
-      .select('id, latitude, longitude, country, city, area')
-      .single();
+    const result = await usersCollection.findOneAndUpdate(
+      { _id: user!.id },
+      { $set: updateData },
+      { returnDocument: 'after' }
+    );
 
-    if (updateError) {
-      return errorResponse('Failed to update location', 'DATABASE_ERROR', 500);
-    }
-
-    return successResponse(profile, 'Location updated successfully');
+    return successResponse({
+      country: result?.country,
+      city: result?.city,
+      area: result?.area,
+    }, 'Location updated');
   } catch (error) {
     console.error('Update location error:', error);
     return errorResponse('An unexpected error occurred', 'SERVER_ERROR', 500);

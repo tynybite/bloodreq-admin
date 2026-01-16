@@ -1,29 +1,45 @@
 'use server';
 
-import { createClient } from "@/lib/supabase/server";
+import { getCollection, Collections, BloodRequestDocument } from "@/lib/db/mongodb";
+import { getFirebaseAuth } from "@/lib/auth/firebase-admin";
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { notifyBloodRequest } from "@/app/admin/notifications/actions";
+import { ObjectId } from "mongodb";
+
+// Helper for auth
+async function getAuthenticatedUser() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('session')?.value;
+  if (!token) return null;
+  try {
+    return await getFirebaseAuth().verifySessionCookie(token);
+  } catch (e) {
+    return null;
+  }
+}
 
 export async function approveRequest(requestId: string, currentData: any) {
-  const supabase = await createClient();
+  const user = await getAuthenticatedUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const collection = await getCollection<BloodRequestDocument>(Collections.BLOOD_REQUESTS);
   
-  // First, apply any edits if provided + update status
-  const { error } = await supabase
-    .from('blood_requests')
-    .update({ 
+  await collection.updateOne(
+    { _id: new ObjectId(requestId) },
+    { 
+      $set: { 
         status: 'approved',
         admin_notes: currentData?.admin_notes,
         patient_name: currentData?.patient_name,
         hospital: currentData?.hospital,
         units: currentData?.units,
-        contact_number: currentData?.contact_number
-    })
-    .eq('id', requestId);
-
-  if (error) {
-    console.error('Error approving request:', error);
-    throw new Error('Failed to approve request');
-  }
+        contact_number: currentData?.contact_number,
+        updated_by: user.uid,
+        updated_at: new Date()
+      }
+    }
+  );
 
   revalidatePath('/admin/blood-requests');
   revalidatePath('/admin/dashboard');
@@ -31,111 +47,106 @@ export async function approveRequest(requestId: string, currentData: any) {
 }
 
 export async function createRequest(data: any) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser();
+  if (!user) throw new Error("Unauthorized");
 
-    if (!user) {
-        throw new Error("Unauthorized");
-    }
+  const collection = await getCollection<BloodRequestDocument>(Collections.BLOOD_REQUESTS);
 
-    const { error } = await supabase
-        .from('blood_requests')
-        .insert({
-            patient_name: data.patient_name,
-            blood_group: data.blood_group,
-            units: data.units,
-            hospital: data.hospital,
-            city: data.city,
-            contact_number: data.contact_number,
-            urgency: data.urgency,
-            admin_notes: data.notes ? `[Request Created via Admin Panel] ${data.notes}` : `[Request Created via Admin Panel]`,
-            status: 'approved', // Admin created requests are auto-approved usually? Or maybe pending? Let's say approved for now or let admin choose. 
-            // Ideally we'd link to a requester. 
-            // If we leave requester_id null, it might violate FK or app logic if app expects a profile.
-            // But we can link it to the admin's profile if they have one in 'profiles' table.
-            requester_id: user.id, 
-            updated_by: user.id
-        });
+  const newRequest: any = {
+    patient_name: data.patient_name,
+    blood_group: data.blood_group,
+    units: data.units,
+    hospital: data.hospital,
+    city: data.city,
+    country: "Bangladesh",
+    contact_number: data.contact_number,
+    urgency: data.urgency,
+    admin_notes: data.notes ? `[Request Created via Admin Panel] ${data.notes}` : `[Request Created via Admin Panel]`,
+    status: 'approved',
+    requester_id: user.uid,
+    updated_by: user.uid,
+    location: {
+      type: "Point",
+      coordinates: [90.4125, 23.8103] // Default Dhaka coordinates
+    },
+    created_at: new Date(),
+    updated_at: new Date()
+  };
 
-    if (error) {
-        console.error('Error creating request:', error);
-        throw new Error('Failed to create request');
-    }
+  await collection.insertOne(newRequest);
 
-    // Send push notification to users with matching blood type
-    try {
-        await notifyBloodRequest({
-            blood_group: data.blood_group,
-            hospital: data.hospital,
-            city: data.city,
-            units: data.units,
-            urgency: data.urgency,
-            patient_name: data.patient_name,
-        }, user.id);
-    } catch (notifyError) {
-        console.error('Failed to send notification:', notifyError);
-        // Don't throw - notification failure shouldn't fail the request creation
-    }
+  // Send push notification to users with matching blood type
+  try {
+    await notifyBloodRequest({
+      blood_group: data.blood_group,
+      hospital: data.hospital,
+      city: data.city,
+      units: data.units,
+      urgency: data.urgency,
+      patient_name: data.patient_name,
+    }, user.uid);
+  } catch (notifyError) {
+    console.error('Failed to send notification:', notifyError);
+  }
 
-    revalidatePath('/admin/blood-requests');
-    revalidatePath('/admin/dashboard');
-    return { success: true };
+  revalidatePath('/admin/blood-requests');
+  revalidatePath('/admin/dashboard');
+  return { success: true };
 }
 
 export async function rejectRequest(requestId: string, currentData: any) {
-  const supabase = await createClient();
-  
-  const { error } = await supabase
-    .from('blood_requests')
-    .update({ 
-        status: 'rejected',
-        admin_notes: currentData?.admin_notes 
-    })
-    .eq('id', requestId);
+  const user = await getAuthenticatedUser();
+  if (!user) throw new Error("Unauthorized");
 
-  if (error) {
-    console.error('Error rejecting request:', error);
-    throw new Error('Failed to reject request');
-  }
+  const collection = await getCollection<BloodRequestDocument>(Collections.BLOOD_REQUESTS);
+  
+  await collection.updateOne(
+    { _id: new ObjectId(requestId) },
+    { 
+      $set: { 
+        status: 'rejected',
+        admin_notes: currentData?.admin_notes,
+        updated_by: user.uid,
+        updated_at: new Date()
+      }
+    }
+  );
 
   revalidatePath('/admin/blood-requests');
 }
 
 export async function deleteRequest(requestId: string) {
-  const supabase = await createClient();
-  
-  const { error } = await supabase
-    .from('blood_requests')
-    .delete()
-    .eq('id', requestId);
+  const user = await getAuthenticatedUser();
+  if (!user) throw new Error("Unauthorized");
 
-  if (error) {
-    console.error('Error deleting request:', error);
-    throw new Error('Failed to delete request');
-  }
+  const collection = await getCollection<BloodRequestDocument>(Collections.BLOOD_REQUESTS);
+  
+  await collection.deleteOne({ _id: new ObjectId(requestId) });
 
   revalidatePath('/admin/blood-requests');
 }
 
 export async function updateRequest(requestId: string, updates: any) {
-    const supabase = await createClient();
+  const user = await getAuthenticatedUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const collection = await getCollection<BloodRequestDocument>(Collections.BLOOD_REQUESTS);
     
-    const { error } = await supabase
-      .from('blood_requests')
-      .update({
+  await collection.updateOne(
+    { _id: new ObjectId(requestId) },
+    { 
+      $set: {
         admin_notes: updates.admin_notes,
         patient_name: updates.patient_name,
         hospital: updates.hospital,
         units: updates.units,
-        contact_number: updates.contact_number
-      })
-      .eq('id', requestId);
-  
-    if (error) {
-      console.error('Error updating request:', error);
-      throw new Error('Failed to update request');
+        contact_number: updates.contact_number,
+        updated_by: user.uid,
+        updated_at: new Date()
+      }
     }
-  
-    revalidatePath('/admin/blood-requests');
-    return { success: true };
+  );
+
+  revalidatePath('/admin/blood-requests');
+  return { success: true };
 }

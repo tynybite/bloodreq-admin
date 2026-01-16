@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { getCollection, Collections, ObjectId } from '@/lib/db/mongodb';
+import { getFirebaseAuth } from '@/lib/auth/firebase-admin';
 import { 
   successResponse, 
   errorResponse, 
@@ -11,35 +11,44 @@ import {
   phoneSchema
 } from '@/lib/api-utils';
 
+// User document interface
+interface UserDocument {
+  _id: string; // Firebase UID
+  email?: string;
+  full_name?: string;
+  blood_group?: string;
+  phone_number?: string;
+  country?: string;
+  city?: string;
+  area?: string;
+  emergency_contact?: string;
+  is_available_to_donate: boolean;
+  avatar_url?: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
 // GET /api/profile - Get current user's profile
 export async function GET(request: NextRequest) {
-  // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
   try {
-    const supabase = await createClient();
+    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
+    const donationsCollection = await getCollection(Collections.DONATIONS);
 
-    // Fetch profile with stats
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user!.id)
-      .single();
+    // Fetch profile
+    const profile = await usersCollection.findOne({ _id: user!.id });
 
-    if (profileError) {
-      if (profileError.code === 'PGRST116') {
-        return errorResponse('Profile not found', 'NOT_FOUND', 404);
-      }
-      return errorResponse('Failed to fetch profile', 'DATABASE_ERROR', 500);
+    if (!profile) {
+      return errorResponse('Profile not found', 'NOT_FOUND', 404);
     }
 
     // Get donation stats
-    const { count: donationCount } = await supabase
-      .from('blood_donations')
-      .select('*', { count: 'exact', head: true })
-      .eq('donor_id', user!.id)
-      .eq('status', 'completed');
+    const donationCount = await donationsCollection.countDocuments({
+      donor_id: user!.id,
+      status: 'completed',
+    });
 
     // Calculate badge tier
     const totalDonations = donationCount || 0;
@@ -50,10 +59,22 @@ export async function GET(request: NextRequest) {
     else if (totalDonations >= 1) badgeTier = 'bronze';
 
     return successResponse({
-      ...profile,
+      id: profile._id,
+      email: profile.email,
+      full_name: profile.full_name,
+      blood_group: profile.blood_group,
+      phone_number: profile.phone_number,
+      country: profile.country,
+      city: profile.city,
+      area: profile.area,
+      emergency_contact: profile.emergency_contact,
+      is_available_to_donate: profile.is_available_to_donate,
+      avatar_url: profile.avatar_url,
+      created_at: profile.created_at,
+      updated_at: profile.updated_at,
       total_donations: totalDonations,
       badge_tier: badgeTier,
-      points: totalDonations * 100, // 100 points per donation
+      points: totalDonations * 100,
     });
   } catch (error) {
     console.error('Get profile error:', error);
@@ -74,24 +95,20 @@ const updateProfileSchema = z.object({
 });
 
 export async function PATCH(request: NextRequest) {
-  // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
-  // Parse and validate request body
   const { data, error: parseError } = await parseBody(request, updateProfileSchema);
   if (parseError) return parseError;
 
   try {
-    // Use admin client to bypass RLS for profile upsert
-    const supabase = createAdminClient();
+    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
 
     // Build update object with only provided fields
-    const updateData: Record<string, any> = {
-      updated_at: new Date().toISOString(),
+    const updateData: Partial<UserDocument> = {
+      updated_at: new Date(),
     };
 
-    // Only include fields that are explicitly provided
     if (data.full_name !== undefined) updateData.full_name = data.full_name;
     if (data.blood_group !== undefined) updateData.blood_group = data.blood_group;
     if (data.phone_number !== undefined) updateData.phone_number = data.phone_number;
@@ -101,24 +118,31 @@ export async function PATCH(request: NextRequest) {
     if (data.emergency_contact !== undefined) updateData.emergency_contact = data.emergency_contact;
     if (data.is_available_to_donate !== undefined) updateData.is_available_to_donate = data.is_available_to_donate;
 
-    // Add user id for upsert
-    updateData.id = user!.id;
-
-    console.log('Upserting profile for user:', user!.id, 'with data:', updateData);
+    console.log('Updating profile for user:', user!.id, 'with data:', updateData);
 
     // Upsert profile (create if doesn't exist, update if exists)
-    const { data: profile, error: updateError } = await supabase
-      .from('profiles')
-      .upsert(updateData, { onConflict: 'id' })
-      .select()
-      .single();
+    const result = await usersCollection.findOneAndUpdate(
+      { _id: user!.id },
+      { 
+        $set: updateData,
+        $setOnInsert: { 
+          _id: user!.id,
+          email: user!.email,
+          is_available_to_donate: true,
+          created_at: new Date(),
+        }
+      },
+      { upsert: true, returnDocument: 'after' }
+    );
 
-    if (updateError) {
-      console.error('Profile update error:', updateError);
-      return errorResponse(`Failed to update profile: ${updateError.message}`, 'DATABASE_ERROR', 500);
+    if (!result) {
+      return errorResponse('Failed to update profile', 'DATABASE_ERROR', 500);
     }
 
-    return successResponse(profile, 'Profile updated successfully');
+    return successResponse({
+      id: result._id,
+      ...result,
+    }, 'Profile updated successfully');
   } catch (error) {
     console.error('Update profile error:', error);
     return errorResponse('An unexpected error occurred', 'SERVER_ERROR', 500);
@@ -127,36 +151,30 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE /api/profile - Delete account
 export async function DELETE(request: NextRequest) {
-  // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
   try {
-    // Use admin client to bypass RLS
-    const supabase = createAdminClient();
+    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
 
-    // Delete profile first
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', user!.id);
+    // Delete profile from MongoDB
+    const { deletedCount } = await usersCollection.deleteOne({ _id: user!.id });
 
-    if (profileError) {
-      console.error('Profile delete error:', profileError);
-      return errorResponse('Failed to delete profile', 'DATABASE_ERROR', 500);
+    if (deletedCount === 0) {
+      console.error('Profile not found for deletion:', user!.id);
     }
 
-    // Delete auth user using admin API
-    const { error: authDeleteError } = await supabase.auth.admin.deleteUser(user!.id);
-
-    if (authDeleteError) {
-      console.error('Auth delete error:', authDeleteError);
-      return errorResponse('Failed to delete account', 'AUTH_ERROR', 500);
+    // Delete auth user from Firebase
+    try {
+      await getFirebaseAuth().deleteUser(user!.id);
+    } catch (firebaseError) {
+      console.error('Firebase user delete error:', firebaseError);
+      // Continue anyway since profile is deleted
     }
 
     return successResponse(
       { deleted: true },
-      'Account has been deleted. We\'re sorry to see you go.'
+      "Account has been deleted. We're sorry to see you go."
     );
   } catch (error) {
     console.error('Delete profile error:', error);

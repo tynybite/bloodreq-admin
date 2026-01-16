@@ -1,47 +1,79 @@
 'use server';
 
-import { createClient } from "@/lib/supabase/server";
+import { getCollection, Collections, UserDocument } from "@/lib/db/mongodb";
+import { getFirebaseAuth } from "@/lib/auth/firebase-admin";
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
+// Helper for auth
+async function getAuthenticatedUser() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('session')?.value;
+  if (!token) return null;
+  try {
+    return await getFirebaseAuth().verifySessionCookie(token);
+  } catch (e) {
+    return null;
+  }
+}
+
 export async function getSettings() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) return null;
-
-  const { data, error } = await supabase
-    .from('admin_users')
-    .select('settings')
-    .eq('id', user.id)
-    .single();
-
-  if (error && error.code !== 'PGRST116') { // Ignore "no rows" error, return null/default
-    console.error('Error fetching settings:', error);
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    console.log('getSettings: No authenticated user');
     return null;
   }
 
-  return data?.settings || null;
+  console.log('getSettings: Fetching settings for user:', user.uid);
+  
+  const collection = await getCollection<UserDocument>(Collections.USERS);
+  const userDoc = await collection.findOne({ _id: user.uid } as any);
+
+  if (!userDoc) {
+    console.log('getSettings: No user document found');
+    return null;
+  }
+  
+  console.log('getSettings: Found settings:', userDoc.admin_details?.settings);
+  
+  // Settings are stored in admin_details.settings
+  return userDoc.admin_details?.settings || null;
 }
 
 export async function updateSettings(settings: any) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
+  const user = await getAuthenticatedUser();
   if (!user) throw new Error("Unauthorized");
 
-  // Upsert into admin_users (create if not exists, though admin should exist)
-  // We need to ensure the admin_user record exists. Since this is an admin panel for existing admins, 
-  // we assume the record exists or we might fail. 
-  // However, specifically updating the 'settings' column requires the row to exist.
-  
-  const { error } = await supabase
-    .from('admin_users')
-    .update({ settings })
-    .eq('id', user.id);
+  console.log('updateSettings: Saving settings for user:', user.uid);
+  console.log('updateSettings: Settings data:', JSON.stringify(settings, null, 2));
 
-  if (error) {
-    console.error('Error updating settings:', error);
-    throw new Error('Failed to update settings');
+  const collection = await getCollection<UserDocument>(Collections.USERS);
+  
+  const result = await collection.updateOne(
+    { _id: user.uid } as any,
+    { 
+      $set: { 
+        'admin_details.settings': settings,
+        updated_at: new Date()
+      }
+    },
+    { upsert: false }
+  );
+
+  console.log('updateSettings: MongoDB result:', result);
+
+  if (result.matchedCount === 0) {
+    console.log('updateSettings: No matching user document found, trying to create admin_details');
+    // User document exists but admin_details might not exist, try with upsert
+    await collection.updateOne(
+      { _id: user.uid } as any,
+      { 
+        $set: { 
+          admin_details: { settings },
+          updated_at: new Date()
+        }
+      }
+    );
   }
 
   revalidatePath('/admin/settings');

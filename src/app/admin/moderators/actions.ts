@@ -1,8 +1,9 @@
 'use server';
 
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getCollection, Collections, ObjectId, AdminUserDocument, UserDocument } from "@/lib/db/mongodb";
+import { getFirebaseAuth } from "@/lib/auth/firebase-admin";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 
 export type Moderator = {
   id: string;
@@ -11,7 +12,7 @@ export type Moderator = {
   assigned_countries: string[];
   assigned_cities: string[];
   is_active: boolean;
-  created_at: string;
+  created_at: Date;
   profile?: {
     full_name: string;
     email?: string;
@@ -25,96 +26,111 @@ export type Moderator = {
 };
 
 export async function getModerators() {
-  const supabase = createAdminClient();
-  
-  // Join admin_users with profiles
-  const { data, error } = await supabase
-    .from('admin_users')
-    .select(`
-      *,
-      profile:profiles(*)
-    `)
-    .order('created_at', { ascending: false });
+  try {
+    const adminUsersCollection = await getCollection<AdminUserDocument>('admin_users');
+    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
 
-  if (error) {
-    console.error('Error fetching moderators:', error.message || error);
+    const adminUsers = await adminUsersCollection.find({}).sort({ created_at: -1 }).toArray();
+
+    // Fetch profiles
+    const moderators = await Promise.all(adminUsers.map(async (admin) => {
+      const profile = await usersCollection.findOne({ _id: admin._id }); // admin._id matches user uid (string)
+      
+      return {
+        id: admin._id,
+        role: admin.role,
+        permissions: admin.permissions || {},
+        assigned_countries: admin.assigned_countries || [],
+        assigned_cities: admin.assigned_cities || [],
+        is_active: admin.is_active,
+        created_at: admin.created_at,
+        profile: profile ? {
+          full_name: profile.full_name || 'Unknown', // Fallback
+          email: profile.email,
+          avatar_url: profile.avatar_url || null,
+          phone_number: profile.phone_number || null,
+          blood_group: profile.blood_group,
+          country: profile.country,
+          city: profile.city,
+          address: profile.area, // Mapping area to address
+        } : undefined
+      };
+    }));
+
+    return moderators;
+  } catch (error) {
+    console.error('Error fetching moderators:', error);
     return [];
   }
-
-  return data as unknown as Moderator[];
 }
 
 export async function toggleModeratorStatus(id: string, isActive: boolean) {
-  const supabase = await createClient();
+  const adminUsersCollection = await getCollection<AdminUserDocument>('admin_users');
   
-  const { error } = await supabase
-    .from('admin_users')
-    .update({ is_active: isActive })
-    .eq('id', id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  await adminUsersCollection.updateOne(
+    { _id: id as unknown as string }, // explicit string cast if needed, but AdminUserDocument defines _id as string
+    { $set: { is_active: isActive } }
+  );
 
   revalidatePath('/admin/moderators');
 }
 
 export async function inviteModerator(email: string, role: string, countries: string[]) {
-  const supabaseAdmin = createAdminClient();
-  const supabase = await createClient();
+  try {
+    // Check if user exists in Firebase
+    let uid;
+    try {
+      const userRecord = await getFirebaseAuth().getUserByEmail(email);
+      uid = userRecord.uid;
+    } catch (e: any) {
+      if (e.code === 'auth/user-not-found') {
+        const tempPassword = Math.random().toString(36).slice(-8) + 'Aa1!';
+        const userRecord = await getFirebaseAuth().createUser({
+          email,
+          password: tempPassword,
+          emailVerified: true,
+        });
+        uid = userRecord.uid;
+        console.log(`Created user ${email} with temp password: ${tempPassword}`);
+      } else {
+        throw e;
+      }
+    }
 
-  // 1. Invite User
-  const { data: authData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    data: { role: 'admin' }, // Mark as admin in metadata initially if needed
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`
-  });
+    // Add to admin_users collection
+    const adminUsersCollection = await getCollection<AdminUserDocument>('admin_users');
+    
+    // Check if already exists to avoid overwriting
+    const existing = await adminUsersCollection.findOne({ _id: uid });
+    if (existing) {
+       return { success: false, message: "User is already a moderator/admin." };
+    }
 
-  if (inviteError) {
-    console.error("Invite error:", inviteError);
-    return { success: false, message: inviteError.message };
-  }
-
-  if (!authData.user) {
-    return { success: false, message: "Failed to create user." };
-  }
-
-  // 2. Add to admin_users table
-  // We need to check if profile exists (managed by trigger usually)
-  // But for admin_users, we explicitly insert.
-  const { error: dbError } = await supabaseAdmin
-    .from('admin_users')
-    .insert({
-      id: authData.user.id,
+    await adminUsersCollection.insertOne({
+      _id: uid,
       role: role,
       assigned_countries: countries,
-      permissions: {}, // Default empty
-      is_active: true
+      assigned_cities: [],
+      permissions: {},
+      is_active: true,
+      created_at: new Date()
     });
 
-  if (dbError) {
-    console.error("DB Error:", dbError);
-    // If insertion fails (e.g. duplicate), we might need to handle it. 
-    // For now simple error return.
-    return { success: false, message: "User invited but failed to add to admin list: " + dbError.message };
+    revalidatePath('/admin/moderators');
+    return { success: true };
+  } catch (error: any) {
+    console.error("Invite error:", error);
+    return { success: false, message: error.message };
   }
-
-  revalidatePath('/admin/moderators');
-  return { success: true };
 }
 
 export async function updateModeratorPassword(id: string, password: string) {
-  const supabaseAdmin = createAdminClient();
-  
-  const { error } = await supabaseAdmin.auth.admin.updateUserById(
-    id,
-    { password: password }
-  );
-
-  if (error) {
+  try {
+    await getFirebaseAuth().updateUser(id, { password });
+    return { success: true };
+  } catch (error: any) {
     return { success: false, message: error.message };
   }
-
-  return { success: true };
 }
 
 // Role hierarchy for permission checks
@@ -125,6 +141,17 @@ const ROLE_HIERARCHY: Record<string, number> = {
   'finance': 1,
   'support': 0,
 };
+
+async function getCurrentUser() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('session')?.value;
+  if (!token) return null;
+  try {
+    return await getFirebaseAuth().verifyIdToken(token);
+  } catch {
+    return null;
+  }
+}
 
 export async function updateModerator(
   currentUserId: string,
@@ -143,21 +170,19 @@ export async function updateModerator(
     };
   }
 ) {
-  const supabase = await createClient();
-  const supabaseAdmin = createAdminClient();
+  const currentUser = await getCurrentUser();
+  if (!currentUser || currentUser.uid !== currentUserId) {
+    return { success: false, message: 'Unauthorized' };
+  }
 
-  // Get current user's role
-  const { data: currentUser, error: currentUserError } = await supabase
-    .from('admin_users')
-    .select('role')
-    .eq('id', currentUserId)
-    .single();
-
-  if (currentUserError || !currentUser) {
+  const adminUsersCollection = await getCollection<AdminUserDocument>('admin_users');
+  const adminUser = await adminUsersCollection.findOne({ _id: currentUser.uid });
+  
+  if (!adminUser) {
     return { success: false, message: 'Failed to verify your permissions' };
   }
 
-  const currentUserLevel = ROLE_HIERARCHY[currentUser.role] ?? 0;
+  const currentUserLevel = ROLE_HIERARCHY[adminUser.role] ?? 0;
 
   // Only super_admin and admin can change roles
   if (currentUserLevel < ROLE_HIERARCHY['admin']) {
@@ -165,75 +190,61 @@ export async function updateModerator(
   }
 
   // Get target moderator's current role
-  const { data: targetMod, error: targetError } = await supabase
-    .from('admin_users')
-    .select('role')
-    .eq('id', moderatorId)
-    .single();
+  const targetMod = await adminUsersCollection.findOne({ _id: moderatorId });
 
-  if (targetError || !targetMod) {
+  if (!targetMod) {
     return { success: false, message: 'Moderator not found' };
   }
 
   const targetLevel = ROLE_HIERARCHY[targetMod.role] ?? 0;
 
   // Can't edit someone with equal or higher role (unless super_admin)
-  if (currentUserLevel <= targetLevel && currentUser.role !== 'super_admin') {
+  if (currentUserLevel <= targetLevel && adminUser.role !== 'super_admin') {
     return { success: false, message: 'Cannot edit a user with equal or higher role' };
   }
 
   // If changing role, check the new role is below current user's level
   if (data.role) {
     const newRoleLevel = ROLE_HIERARCHY[data.role] ?? 0;
-    if (newRoleLevel >= currentUserLevel && currentUser.role !== 'super_admin') {
+    if (newRoleLevel >= currentUserLevel && adminUser.role !== 'super_admin') {
       return { success: false, message: 'Cannot assign a role equal to or higher than your own' };
     }
   }
 
-  // Update admin_users table (role & countries)
-  const { error: updateError } = await supabaseAdmin
-    .from('admin_users')
-    .update({
-      ...(data.role && { role: data.role }),
-      ...(data.assigned_countries && { assigned_countries: data.assigned_countries }),
-      ...(data.assigned_cities && { assigned_cities: data.assigned_cities }),
-    })
-    .eq('id', moderatorId);
+  // Update admin_users collection
+  const updateFields: any = {};
+  if (data.role) updateFields.role = data.role;
+  if (data.assigned_countries) updateFields.assigned_countries = data.assigned_countries;
+  if (data.assigned_cities) updateFields.assigned_cities = data.assigned_cities;
 
-  if (updateError) {
-    return { success: false, message: updateError.message };
+  if (Object.keys(updateFields).length > 0) {
+    updateFields.updated_at = new Date();
+    await adminUsersCollection.updateOne(
+      { _id: moderatorId },
+      { $set: updateFields }
+    );
   }
 
-  // Update profiles table if profile data provided
-  // Only update fields that exist in the profiles table
+  // Update profiles collection if profile data provided
   if (data.profile) {
-    const profileUpdate: Record<string, any> = {};
+    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
+    const profileUpdate: any = {};
     if (data.profile.full_name) profileUpdate.full_name = data.profile.full_name;
     if (data.profile.phone_number !== undefined) profileUpdate.phone_number = data.profile.phone_number;
-    // Note: blood_group, country, city may not exist in all schemas
-    // Add them only if they're commonly used in your profiles table
     if (data.profile.blood_group !== undefined) profileUpdate.blood_group = data.profile.blood_group;
     if (data.profile.country !== undefined) profileUpdate.country = data.profile.country;
     if (data.profile.city !== undefined) profileUpdate.city = data.profile.city;
-    // Skip 'address' as it doesn't exist in the database schema
-    
-    if (Object.keys(profileUpdate).length > 0) {
-      profileUpdate.updated_at = new Date().toISOString();
-      
-      const { error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .update(profileUpdate)
-        .eq('id', moderatorId);
+    if (data.profile.address !== undefined) profileUpdate.area = data.profile.address;
 
-      if (profileError) {
-        console.error('Profile update error:', profileError);
-        // Don't fail the whole operation, admin_users was already updated
-      }
+    if (Object.keys(profileUpdate).length > 0) {
+      profileUpdate.updated_at = new Date();
+      await usersCollection.updateOne(
+        { _id: moderatorId },
+        { $set: profileUpdate }
+      );
     }
   }
 
   revalidatePath('/admin/moderators');
   return { success: true };
 }
-
-

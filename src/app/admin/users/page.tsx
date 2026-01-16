@@ -1,39 +1,49 @@
 
-import { createClient } from "@/lib/supabase/server";
+import { getCollection, Collections, UserDocument } from '@/lib/db/mongodb';
 import UsersClient from "./UsersClient";
 
+// Helper to get count by status
+async function getCountByStatus(status: string) {
+  const usersCollection = await getCollection<UserDocument>(Collections.USERS);
+  return await usersCollection.countDocuments({ status });
+}
+
 export default async function UsersPage() {
-  const supabase = await createClient();
+  const usersCollection = await getCollection<UserDocument>(Collections.USERS);
 
-  // Fetch Users (Profiles)
-  // Note: auth.users is distinct from public.profiles. We use profiles for application data.
-  // Emails are in auth.users, which we can't join directly with public tables easily in simple query 
-  // without a view or RPC. For now, we rely on profiles.
-  const { data: users, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error("Error fetching users:", error);
-  }
+  // Fetch Users
+  const usersRaw = await usersCollection.find({})
+    .sort({ created_at: -1 })
+    .toArray();
+    
+  const users = usersRaw.map(user => ({
+    ...user,
+    id: user._id,
+    _id: undefined,
+  }));
 
   // Calculate Stats
-  const { count: totalUsers } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
-  const { count: activeUsers } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('status', 'active'); // Assuming active by default logic needed
-  const { count: donors } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'donor');
+  const totalUsers = await usersCollection.countDocuments({});
+  
+  const activeUsers = await usersCollection.countDocuments({ 
+    $or: [{ status: 'active' }, { status: { $exists: false } }] 
+  }); 
+
+  // Donors - users with blood group set
+  const donors = await usersCollection.countDocuments({ blood_group: { $exists: true, $ne: null as any } });
+
   // New This Month
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0,0,0,0);
-  const { count: newUsers } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', startOfMonth.toISOString());
+  const newUsers = await usersCollection.countDocuments({ created_at: { $gte: startOfMonth } });
 
   const stats = [
     { label: 'Total Users', value: totalUsers || 0, gradient: 'from-blue-500 to-cyan-400' },
-    { label: 'Active Today', value: 124, gradient: 'from-emerald-500 to-teal-400' }, // mock active today
+    { label: 'Active Today', value: 124, gradient: 'from-emerald-500 to-teal-400' }, // mock active today or use aggregation on 'last_sign_in' if available
     { label: 'Donors', value: donors || 0, gradient: 'from-rose-500 to-pink-400' },
     { label: 'New This Month', value: newUsers || 0, gradient: 'from-violet-500 to-purple-500' },
   ];
 
-  return <UsersClient initialUsers={users || []} stats={stats} />;
+  return <UsersClient initialUsers={users as any[]} stats={stats} />;
 }

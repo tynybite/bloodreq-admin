@@ -1,7 +1,8 @@
 'use server';
 
-import { createClient } from "@/lib/supabase/server";
+import { getCollection, Collections, DonationDocument, UserDocument, FundraiserDocument, BloodRequestDocument } from "@/lib/db/mongodb";
 import { revalidatePath } from "next/cache";
+import { ObjectId } from "mongodb";
 
 export type FinancialDonation = {
   id: string;
@@ -34,71 +35,101 @@ export type BloodDonation = {
   };
 };
 
+// Financial donations are stored in the same DONATIONS collection
+// but we filter by fundraiser_id being present
 export async function getFinancialDonations() {
-  const supabase = await createClient();
+  const donationsCollection = await getCollection<DonationDocument>(Collections.DONATIONS);
+  const fundraisersCollection = await getCollection<FundraiserDocument>(Collections.FUNDRAISERS);
   
-  const { data, error } = await supabase
-    .from('donations')
-    .select(`
-      *,
-      fundraiser:fundraisers(title)
-    `)
-    .order('created_at', { ascending: false });
+  // Get donations that have fundraiser_id (financial donations to fundraisers)
+  const donationsRaw = await donationsCollection.find({})
+    .sort({ created_at: -1 })
+    .toArray();
 
-  if (error) {
-    console.error('Error fetching financial donations:', error);
-    return [];
-  }
+  // Manually join with fundraisers
+  const results = await Promise.all(donationsRaw.map(async (d: any) => {
+    let fundraiser = null;
+    if (d.fundraiser_id) {
+      try {
+        const f = await fundraisersCollection.findOne({ _id: new ObjectId(d.fundraiser_id.toString()) });
+        if (f) fundraiser = { title: f.title };
+      } catch (e) { /* ignore */ }
+    }
+    return {
+      id: d._id?.toString() || '',
+      amount: d.amount || 0,
+      currency: 'BDT',
+      payment_method: d.payment_method || 'unknown',
+      transaction_id: d.transaction_id || null,
+      donor_name: d.donor_name || null,
+      donor_phone: null,
+      status: d.status || 'pending',
+      created_at: d.created_at?.toISOString() || new Date().toISOString(),
+      fundraiser
+    } as FinancialDonation;
+  }));
 
-  return data as FinancialDonation[];
+  return results;
 }
 
+// Blood donations - these are offers to fulfill blood requests
 export async function getBloodDonations() {
-  const supabase = await createClient();
+  const donationsCollection = await getCollection<DonationDocument>(Collections.DONATIONS);
+  const requestsCollection = await getCollection<BloodRequestDocument>(Collections.BLOOD_REQUESTS);
+  const usersCollection = await getCollection<UserDocument>(Collections.USERS);
 
-  const { data, error } = await supabase
-    .from('blood_donations')
-    .select(`
-      *,
-      request:blood_requests(patient_name, blood_group, hospital),
-      donor:profiles(full_name, phone_number, avatar_url)
-    `)
-    .order('created_at', { ascending: false });
+  // Blood donations have request_id (link to blood_requests)
+  const donationsRaw = await donationsCollection.find({ request_id: { $exists: true } })
+    .sort({ created_at: -1 })
+    .toArray();
 
-  if (error) {
-    console.error('Error fetching blood donations:', error);
-    return [];
-  }
+  const results = await Promise.all(donationsRaw.map(async (d) => {
+    let request = null;
+    let donor = null;
 
-  return data as BloodDonation[];
+    if (d.request_id) {
+      try {
+        const r = await requestsCollection.findOne({ _id: new ObjectId(d.request_id.toString()) });
+        if (r) request = { patient_name: r.patient_name, blood_group: r.blood_group, hospital: r.hospital };
+      } catch (e) { /* ignore */ }
+    }
+
+    if (d.donor_id) {
+      const u = await usersCollection.findOne({ _id: d.donor_id.toString() } as any);
+      if (u) donor = { full_name: u.full_name || '', phone_number: u.phone_number || '', avatar_url: u.avatar_url || null };
+    }
+
+    return {
+      id: d._id?.toString() || '',
+      status: d.status || 'offered',
+      created_at: d.created_at?.toISOString() || new Date().toISOString(),
+      request,
+      donor
+    } as BloodDonation;
+  }));
+
+  return results;
 }
 
 export async function verifyFinancialDonation(id: string) {
-  const supabase = await createClient();
+  const collection = await getCollection<DonationDocument>(Collections.DONATIONS);
   
-  const { error } = await supabase
-    .from('donations')
-    .update({ status: 'completed' })
-    .eq('id', id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  await collection.updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { status: 'completed' } }
+  );
 
   revalidatePath('/admin/donations');
 }
 
 export async function failFinancialDonation(id: string) {
-  const supabase = await createClient();
+  const collection = await getCollection<DonationDocument>(Collections.DONATIONS);
   
-  const { error } = await supabase
-    .from('donations')
-    .update({ status: 'failed' })
-    .eq('id', id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  // Using 'rejected' since 'failed' is not in DonationDocument status type
+  await collection.updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { status: 'rejected' } }
+  );
 
   revalidatePath('/admin/donations');
 }

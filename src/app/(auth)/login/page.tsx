@@ -1,12 +1,11 @@
 "use client";
 
-
-
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "@/lib/auth/firebase-client";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,25 +15,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Facebook, 
   Chrome, 
-  Phone, 
-  Mail, 
   ArrowRight 
 } from "lucide-react";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
-
   const router = useRouter();
-  const supabase = createClient();
 
-  // Handle Login
   // Handle Login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
     // Get values from form
-    // Note: We're selecting by ID which is fragile in React but works for this structure
     const email = (document.getElementById('email') as HTMLInputElement)?.value;
     const password = (document.getElementById('password') as HTMLInputElement)?.value;
 
@@ -45,38 +38,81 @@ export default function LoginPage() {
     }
 
     try {
-      // 1. Sign in
-      const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // 1. Sign in with Firebase
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      const idToken = await user.getIdToken();
+
+      // 2. Create Session on Server
+      const response = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ idToken }),
       });
 
-      if (signInError) throw signInError;
-      if (!user) throw new Error("No user returned from sign in");
+      const result = await response.json();
 
-      // 2. Check if user is admin
-      const { data: adminUser, error: adminError } = await supabase
-        .from('admin_users')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (adminError || !adminUser) {
-        console.error("Admin Login Error:", adminError);
-        // Not an admin - sign out and error
-        await supabase.auth.signOut();
-        toast.error(adminError ? `DB Error: ${adminError.message}` : "Access denied. Admin privileges required.");
-      } else {
-        toast.success("Logged in successfully");
-        router.push("/admin/dashboard");
-        router.refresh();
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to create session');
       }
+
+      // 3. Check admin privileges
+      if (!result.data.is_admin) {
+         // Sign out from client side if not admin
+         await auth.signOut();
+         // Maybe also hit signout API to clear cookie?
+         await fetch('/api/auth/signout', { method: 'POST' });
+         throw new Error("Access denied. Admin privileges required.");
+      }
+
+      toast.success("Logged in successfully");
+      router.push("/admin/dashboard");
+      router.refresh();
+
     } catch (error: any) {
+      console.error("Login error:", error);
       toast.error(error.message || "An error occurred during login");
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      const userCredential = await signInWithPopup(auth, provider);
+      const user = userCredential.user;
+      const idToken = await user.getIdToken();
+
+      // Create Session
+      const response = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ idToken }),
+      });
+      
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to create session');
+      }
+
+      if (!result.data.is_admin) {
+         await auth.signOut();
+         await fetch('/api/auth/signout', { method: 'POST' });
+         throw new Error("Access denied. Admin privileges required.");
+      }
+
+      toast.success("Logged in successfully");
+      router.push("/admin/dashboard");
+    } catch (error: any) {
+        toast.error(error.message || "Google sign in failed");
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -89,7 +125,7 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="phone" className="w-full">
+      <Tabs defaultValue="email" className="w-full">
         <TabsList className="grid w-full grid-cols-2 bg-zinc-100 p-1 mb-6 h-auto">
           <TabsTrigger value="phone" className="data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm py-2">
             Phone
@@ -179,7 +215,7 @@ export default function LoginPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <Button variant="outline" className="h-11 bg-white border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300 text-zinc-700">
+        <Button onClick={handleGoogleLogin} variant="outline" className="h-11 bg-white border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300 text-zinc-700">
           <Chrome className="mr-2 h-4 w-4" />
           Google
         </Button>

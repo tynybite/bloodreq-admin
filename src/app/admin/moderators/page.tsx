@@ -1,38 +1,52 @@
 import { getModerators } from './actions';
 import ModeratorsClient from './ModeratorsClient';
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { getFirebaseAuth } from '@/lib/auth/firebase-admin';
+import { getCollection, Collections } from '@/lib/db/mongodb';
+import { cookies } from 'next/headers';
+
+// Helper to get current user from session cookie or token
+async function getCurrentUser() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('session')?.value;
+  
+  if (!token) return null;
+
+  try {
+    const decodedToken = await getFirebaseAuth().verifyIdToken(token);
+    return decodedToken;
+  } catch (error) {
+    return null;
+  }
+}
 
 export default async function ModeratorsPage() {
   const moderators = await getModerators();
-  const supabase = await createClient();
-  const supabaseAdmin = createAdminClient();
+  const user = await getCurrentUser();
   
-  // Get current user
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  // Get current user's admin role using admin client
   let currentUserRole = 'support'; // Default lowest role
+  
   if (user) {
-    const { data: adminUser, error } = await supabaseAdmin
-      .from('admin_users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    
-    console.log('Current user role lookup:', { userId: user.id, adminUser, error });
-    
-    if (adminUser) {
-      currentUserRole = adminUser.role;
+    try {
+      const adminUsersCollection = await getCollection('admin_users');
+      const adminUser = await adminUsersCollection.findOne({ _id: user.uid });
+      
+      console.log('Current user role lookup:', { userId: user.uid, adminUser });
+      
+      if (adminUser) {
+        // @ts-ignore
+        currentUserRole = adminUser.role;
+      }
+    } catch (error) {
+      console.error('Error fetching admin role:', error);
     }
   }
 
-  console.log('Passing to client:', { currentUserId: user?.id, currentUserRole });
+  console.log('Passing to client:', { currentUserId: user?.uid, currentUserRole });
 
   return (
     <ModeratorsClient 
       moderators={moderators} 
-      currentUserId={user?.id || ''} 
+      currentUserId={user?.uid || ''} 
       currentUserRole={currentUserRole}
     />
   );

@@ -5,9 +5,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { SidebarProvider, useSidebar } from "@/components/layout/SidebarContext";
 import BloodCellsBackground from "@/components/reactbits/BloodCellsBackground";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { toast } from "sonner";
+import { UserProvider, AdminUser } from "@/contexts/UserContext";
 
 function LayoutContent({ children }: { children: ReactNode }) {
   const { collapsed } = useSidebar();
@@ -19,37 +17,6 @@ function LayoutContent({ children }: { children: ReactNode }) {
     window.addEventListener('resize', checkDesktop);
     return () => window.removeEventListener('resize', checkDesktop);
   }, []);
-
-  // Admin access check
-  const router = useRouter();
-  const supabase = createClient();
-
-  useEffect(() => {
-    const checkAdmin = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        // Handled by middleware mostly, but double check
-        router.push('/login');
-        return;
-      }
-
-      // Check admin status
-      const { data: adminUser, error } = await supabase
-        .from('admin_users')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      
-      if (error || !adminUser) {
-        toast.error("Access denied. Admin privileges required.");
-        await supabase.auth.signOut();
-        router.push('/login');
-      }
-    };
-    
-    checkAdmin();
-  }, [router, supabase]);
 
   const marginLeft = isDesktop ? (collapsed ? 72 : 260) : 0;
 
@@ -77,10 +44,12 @@ function LayoutContent({ children }: { children: ReactNode }) {
   );
 }
 
-export function AdminLayoutClient({ children }: { children: ReactNode }) {
+export function AdminLayoutClient({ children, user }: { children: ReactNode; user: AdminUser }) {
   return (
-    <SidebarProvider>
-      <LayoutContent>{children}</LayoutContent>
-    </SidebarProvider>
+    <UserProvider user={user}>
+      <SidebarProvider>
+        <LayoutContent>{children}</LayoutContent>
+      </SidebarProvider>
+    </UserProvider>
   );
 }

@@ -1,186 +1,193 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { 
-  successResponse, 
-  errorResponse, 
-  getAuthUser,
-  parseBody,
-  bloodGroupSchema
-} from '@/lib/api-utils';
+import { getCollection, Collections, BloodRequestDocument, UserDocument } from '@/lib/db/mongodb';
+import { successResponse, errorResponse, getAuthUser, parseBody, bloodGroupSchema } from '@/lib/api-utils';
 
-// GET /api/blood-requests - List nearby blood requests
+// Schema for creating a blood request
+const createBloodRequestSchema = z.object({
+  patient_name: z.string().min(2, 'Patient name is required'),
+  patient_age: z.number().int().positive().optional(),
+  blood_group: bloodGroupSchema,
+  units: z.number().int().positive(),
+  hospital: z.string().min(2, 'Hospital name is required'),
+  address: z.string().optional(), // Full address of hospital
+  city: z.string().min(2, 'City is required'),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  urgency: z.enum(['critical', 'urgent', 'planned']),
+  contact_number: z.string().min(10, 'Valid contact number is required'),
+  alternate_contact: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+// GET /api/blood-requests - List blood requests with filtering
 export async function GET(request: NextRequest) {
-  // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
   try {
     const { searchParams } = new URL(request.url);
-    
-    // Parse query parameters
-    const lat = parseFloat(searchParams.get('lat') || '0');
-    const lng = parseFloat(searchParams.get('lng') || '0');
-    const radius = parseInt(searchParams.get('radius') || '50'); // km
-    const bloodGroup = searchParams.get('blood_group');
+    const blood_group = searchParams.get('blood_group');
     const urgency = searchParams.get('urgency');
-    const status = searchParams.get('status') || 'approved';
-    const sort = searchParams.get('sort') || 'newest';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50);
-
-    const supabase = await createClient();
-
-    // Build query
-    let query = supabase
-      .from('blood_requests')
-      .select(`
-        *,
-        requester:profiles!blood_requests_requester_id_fkey(id, full_name, avatar_url)
-      `, { count: 'exact' })
-      .in('status', status === 'all' ? ['approved', 'in_progress'] : [status]);
-
-    // Filter by blood group
-    if (bloodGroup) {
-      query = query.eq('blood_group', bloodGroup);
-    }
-
-    // Filter by urgency
-    if (urgency) {
-      query = query.eq('urgency', urgency);
-    }
-
-    // Sorting
-    switch (sort) {
-      case 'urgent':
-        query = query.order('urgency', { ascending: true }).order('created_at', { ascending: false });
-        break;
-      case 'closest':
-        // For closest, we'd need PostGIS or calculate distance in app
-        query = query.order('created_at', { ascending: false });
-        break;
-      case 'newest':
-      default:
-        query = query.order('created_at', { ascending: false });
-    }
-
+    const city = searchParams.get('city');
+    const status = searchParams.get('status') || 'pending'; // Default to active/pending requests
+    
     // Pagination
-    const offset = (page - 1) * limit;
-    query = query.range(offset, offset + limit - 1);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const skip = (page - 1) * limit;
 
-    const { data: requests, error: queryError, count } = await query;
-
-    if (queryError) {
-      console.error('Query error:', queryError);
-      return errorResponse('Failed to fetch blood requests', 'DATABASE_ERROR', 500);
+    const query: any = {};
+    if (blood_group) query.blood_group = blood_group;
+    if (urgency) query.urgency = urgency;
+    if (city) query.city = { $regex: new RegExp(city, 'i') };
+    
+    // Status filter
+    if (status === 'active') {
+      query.status = { $in: ['pending', 'in_progress', 'approved'] };
+    } else if (status !== 'all') {
+      query.status = status;
     }
 
-    // Calculate distance for each request (simple Haversine formula)
-    const requestsWithDistance = (requests || []).map((req: any) => {
-      let distance_km = null;
+    // Location-based filtering (lat/long radius)
+    const lat = searchParams.get('latitude');
+    const lng = searchParams.get('longitude');
+    const radius = parseFloat(searchParams.get('radius') || '10'); // km
+
+    const requestsCollection = await getCollection<BloodRequestDocument>(Collections.BLOOD_REQUESTS);
+    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
+
+    let requests;
+    let total = 0;
+
+    // Use MongoDB aggregation
+    const pipeline: any[] = [
+      { $match: query },
+      { $sort: { created_at: -1 } },
+      { $skip: skip },
+      { $limit: limit }
+    ];
+
+    total = await requestsCollection.countDocuments(query);
+    const cursor = requestsCollection.aggregate(pipeline);
+    const rawRequests = await cursor.toArray();
+
+    // Enrich with requester info
+    const requesterIds = [...new Set(rawRequests.map(r => r.requester_id))];
+    const requesters = await usersCollection.find({ _id: { $in: requesterIds } }).toArray();
+    const requesterMap = new Map(requesters.map(u => [u._id.toString(), u]));
+
+    requests = rawRequests.map(req => {
+      const requester = requesterMap.get(req.requester_id.toString());
+      
+      // Calculate distance if user coords provided
+      let distance = null;
       if (lat && lng && req.latitude && req.longitude) {
-        distance_km = calculateDistance(lat, lng, req.latitude, req.longitude);
+        distance = calculateDistance(
+          parseFloat(lat), 
+          parseFloat(lng), 
+          req.latitude, 
+          req.longitude
+        );
       }
+
       return {
-        ...req,
-        distance_km,
+        id: req._id?.toString(),
+        patient_name: req.patient_name,
+        patient_age: req.patient_age,
+        blood_group: req.blood_group,
+        units: req.units,
+        hospital: req.hospital,
+        address: req.address,
+        city: req.city,
+        urgency: req.urgency,
+        contact_number: req.contact_number,
+        notes: req.notes,
+        status: req.status,
+        created_at: req.created_at,
+        distance,
+        requester: requester ? {
+          id: requester._id.toString(),
+          full_name: requester.full_name,
+          avatar_url: requester.avatar_url,
+          rating: 4.8 // Mock rating
+        } : null
       };
     });
 
-    // Sort by distance if requested
-    if (sort === 'closest' && lat && lng) {
-      requestsWithDistance.sort((a: any, b: any) => (a.distance_km || 9999) - (b.distance_km || 9999));
-    }
-
-    // Filter by radius
-    const filteredRequests = radius > 0 && lat && lng
-      ? requestsWithDistance.filter((req: any) => req.distance_km === null || req.distance_km <= radius)
-      : requestsWithDistance;
-
     return successResponse({
-      requests: filteredRequests,
+      requests,
       pagination: {
         page,
         limit,
-        total: count || 0,
-        total_pages: Math.ceil((count || 0) / limit),
-      },
+        total,
+        total_pages: Math.ceil(total / limit),
+      }
     });
   } catch (error) {
-    console.error('List blood requests error:', error);
+    console.error('Get blood requests error:', error);
     return errorResponse('An unexpected error occurred', 'SERVER_ERROR', 500);
   }
 }
 
-// Haversine formula to calculate distance between two points
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Earth's radius in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c * 10) / 10; // Round to 1 decimal
-}
-
 // POST /api/blood-requests - Create a new blood request
-const createRequestSchema = z.object({
-  patient_name: z.string().min(2, 'Patient name is required'),
-  patient_age: z.number().int().min(0).max(120).optional(),
-  blood_group: bloodGroupSchema,
-  units: z.number().int().min(1).max(10),
-  hospital: z.string().min(2, 'Hospital name is required'),
-  address: z.string().optional(),
-  city: z.string().min(2, 'City is required'),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
-  urgency: z.enum(['critical', 'urgent', 'planned']),
-  contact_number: z.string().min(10, 'Contact number is required'),
-  alternate_contact: z.string().optional(),
-  notes: z.string().max(500).optional(),
-});
-
 export async function POST(request: NextRequest) {
-  // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
-  // Parse and validate request body
-  const { data, error: parseError } = await parseBody(request, createRequestSchema);
+  const { data, error: parseError } = await parseBody(request, createBloodRequestSchema);
   if (parseError) return parseError;
 
   try {
-    const supabase = await createClient();
+    const requestsCollection = await getCollection<BloodRequestDocument>(Collections.BLOOD_REQUESTS);
 
-    // Create blood request (status = pending, awaiting admin approval)
-    const { data: newRequest, error: insertError } = await supabase
-      .from('blood_requests')
-      .insert({
-        ...data,
-        requester_id: user!.id,
-        status: 'pending', // Must be approved by admin before visible
-      })
-      .select()
-      .single();
+    const newRequest: BloodRequestDocument = {
+      requester_id: user!.id,
+      patient_name: data.patient_name,
+      patient_age: data.patient_age,
+      blood_group: data.blood_group,
+      units: data.units,
+      hospital: data.hospital,
+      address: data.address,
+      city: data.city,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      urgency: data.urgency,
+      contact_number: data.contact_number,
+      alternate_contact: data.alternate_contact,
+      notes: data.notes,
+      status: 'pending',
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
 
-    if (insertError) {
-      console.error('Insert error:', insertError);
-      return errorResponse('Failed to create blood request', 'DATABASE_ERROR', 500);
-    }
+    const result = await requestsCollection.insertOne(newRequest);
 
-    return successResponse(
-      {
-        id: newRequest.id,
-        status: 'pending',
-      },
-      'Blood request submitted. Awaiting admin approval.',
-      201
-    );
+    return successResponse({
+      id: result.insertedId.toString(),
+      ...data,
+      status: 'pending',
+    }, 'Blood request created successfully', 201);
   } catch (error) {
     console.error('Create blood request error:', error);
     return errorResponse('An unexpected error occurred', 'SERVER_ERROR', 500);
   }
+}
+
+// Haversine formula for distance
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Radius of the earth in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2); 
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+  const d = R * c; // Distance in km
+  return Number(d.toFixed(1));
+}
+
+function deg2rad(deg: number): number {
+  return deg * (Math.PI/180);
 }

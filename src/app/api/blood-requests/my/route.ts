@@ -1,54 +1,44 @@
 import { NextRequest } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getCollection, Collections } from '@/lib/db/mongodb';
 import { successResponse, errorResponse, getAuthUser } from '@/lib/api-utils';
 
 // GET /api/blood-requests/my - Get user's own blood requests
 export async function GET(request: NextRequest) {
-  // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
   try {
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status'); // pending, approved, in_progress, completed, cancelled
+    const status = searchParams.get('status');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50);
 
-    const supabase = await createClient();
+    const requestsCollection = await getCollection(Collections.BLOOD_REQUESTS);
+    const donationsCollection = await getCollection(Collections.DONATIONS);
 
-    // Build query
-    let query = supabase
-      .from('blood_requests')
-      .select('*', { count: 'exact' })
-      .eq('requester_id', user!.id)
-      .order('created_at', { ascending: false });
+    const filter: any = { requester_id: user!.id };
+    if (status) filter.status = status;
 
-    // Filter by status
-    if (status) {
-      query = query.eq('status', status);
-    }
-
-    // Pagination
     const offset = (page - 1) * limit;
-    query = query.range(offset, offset + limit - 1);
+    const total = await requestsCollection.countDocuments(filter);
+    const requests = await requestsCollection
+      .find(filter)
+      .sort({ created_at: -1 })
+      .skip(offset)
+      .limit(limit)
+      .toArray();
 
-    const { data: requests, error: queryError, count } = await query;
-
-    if (queryError) {
-      return errorResponse('Failed to fetch your requests', 'DATABASE_ERROR', 500);
-    }
-
-    // Get donation counts for each request
+    // Get donation counts
     const requestsWithStats = await Promise.all(
-      (requests || []).map(async (req: any) => {
-        const { count: donorsCount } = await supabase
-          .from('blood_donations')
-          .select('*', { count: 'exact', head: true })
-          .eq('request_id', req.id);
-        
+      requests.map(async (req: any) => {
+        const donorsCount = await donationsCollection.countDocuments({
+          request_id: req._id?.toString(),
+        });
         return {
+          id: req._id?.toString(),
           ...req,
-          donors_count: donorsCount || 0,
+          _id: undefined,
+          donors_count: donorsCount,
         };
       })
     );
@@ -58,8 +48,8 @@ export async function GET(request: NextRequest) {
       pagination: {
         page,
         limit,
-        total: count || 0,
-        total_pages: Math.ceil((count || 0) / limit),
+        total,
+        total_pages: Math.ceil(total / limit),
       },
     });
   } catch (error) {

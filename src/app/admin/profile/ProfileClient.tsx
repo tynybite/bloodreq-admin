@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { createClient } from "@/lib/supabase/client";
+
 
 interface ProfileData {
   id: string;
@@ -39,22 +39,22 @@ export default function ProfileClient({ initialProfile }: { initialProfile: Prof
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
-  const supabase = createClient();
-
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
+      const response = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           full_name: profile.full_name,
           phone_number: profile.phone_number,
           city: profile.city,
           country: profile.country,
-        })
-        .eq('id', profile.id);
+          avatar_url: profile.avatar_url,
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Failed to update profile');
       
       // Show success state briefly (optional toast here)
       setTimeout(() => setIsSaving(false), 500);
@@ -65,9 +65,44 @@ export default function ProfileClient({ initialProfile }: { initialProfile: Prof
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Placeholder for actual storage upload implementation
-    // This requires a storage bucket set up in Supabase
-    alert("Avatar upload requires Storage bucket configuration.");
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', 'avatars');
+
+    try {
+        const response = await fetch('/api/upload/image', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) throw new Error('Upload failed');
+
+        const data = await response.json();
+        
+        // Update local state with new avatar URL
+        setProfile(prev => ({ ...prev, avatar_url: data.data.url }));
+        
+        // Auto-save the new avatar URL to profile
+        // Note: handleSave uses the state 'profile', but since setState is async, 
+        // passing the url directly or waiting for effect is safer. 
+        // Here we just updated the state and hope user clicks save or we can trigger a separate patch.
+        // Better UX: Auto-save the avatar change immediately
+        await fetch('/api/profile', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ avatar_url: data.data.url }),
+        });
+
+    } catch (error) {
+        console.error("Avatar upload error:", error);
+        alert("Failed to upload avatar");
+    } finally {
+        setIsUploading(false);
+    }
   };
 
   const containerVariants = {

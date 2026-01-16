@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { getCollection, Collections, ObjectId } from '@/lib/db/mongodb';
 import { 
   successResponse, 
   errorResponse, 
@@ -17,28 +17,18 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   
-  // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
   try {
-    const supabase = await createClient();
+    const requestsCollection = await getCollection(Collections.BLOOD_REQUESTS);
+    const usersCollection = await getCollection(Collections.USERS);
+    const donationsCollection = await getCollection(Collections.DONATIONS);
 
-    // Fetch blood request with requester and donors
-    const { data: bloodRequest, error: queryError } = await supabase
-      .from('blood_requests')
-      .select(`
-        *,
-        requester:profiles!blood_requests_requester_id_fkey(id, full_name, avatar_url, phone_number)
-      `)
-      .eq('id', id)
-      .single();
+    const bloodRequest = await requestsCollection.findOne({ _id: new ObjectId(id) });
 
-    if (queryError) {
-      if (queryError.code === 'PGRST116') {
-        return errorResponse('Blood request not found', 'NOT_FOUND', 404);
-      }
-      return errorResponse('Failed to fetch blood request', 'DATABASE_ERROR', 500);
+    if (!bloodRequest) {
+      return errorResponse('Blood request not found', 'NOT_FOUND', 404);
     }
 
     // Only show approved/in_progress requests to non-owners
@@ -47,22 +37,45 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return errorResponse('Blood request not found', 'NOT_FOUND', 404);
     }
 
+    // Fetch requester info
+    const requester = await usersCollection.findOne({ _id: bloodRequest.requester_id });
+
     // Fetch donors who have offered
-    const { data: donors } = await supabase
-      .from('blood_donations')
-      .select(`
-        id,
-        status,
-        created_at,
-        donor:profiles!blood_donations_donor_id_fkey(id, full_name, avatar_url, blood_group)
-      `)
-      .eq('request_id', id)
-      .order('created_at', { ascending: false });
+    const donorDocs = await donationsCollection
+      .find({ request_id: id })
+      .sort({ created_at: -1 })
+      .toArray();
+
+    // Get donor details
+    const donors = await Promise.all(
+      donorDocs.map(async (d: any) => {
+        const donor = await usersCollection.findOne({ _id: d.donor_id });
+        return {
+          id: d._id?.toString(),
+          status: d.status,
+          created_at: d.created_at,
+          donor: donor ? {
+            id: donor._id,
+            full_name: donor.full_name,
+            avatar_url: donor.avatar_url,
+            blood_group: donor.blood_group,
+          } : null,
+        };
+      })
+    );
 
     return successResponse({
+      id: bloodRequest._id?.toString(),
       ...bloodRequest,
-      donors: donors || [],
-      donors_count: donors?.length || 0,
+      _id: undefined,
+      requester: requester ? {
+        id: requester._id,
+        full_name: requester.full_name,
+        avatar_url: requester.avatar_url,
+        phone_number: requester.phone_number,
+      } : null,
+      donors,
+      donors_count: donors.length,
     });
   } catch (error) {
     console.error('Get blood request error:', error);
@@ -70,7 +83,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// PATCH /api/blood-requests/:id - Update blood request (owner only)
+// PATCH /api/blood-requests/:id - Update blood request
 const updateRequestSchema = z.object({
   patient_name: z.string().min(2).optional(),
   patient_age: z.number().int().min(0).max(120).optional(),
@@ -90,25 +103,18 @@ const updateRequestSchema = z.object({
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   
-  // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
-  // Parse and validate request body
   const { data, error: parseError } = await parseBody(request, updateRequestSchema);
   if (parseError) return parseError;
 
   try {
-    const supabase = await createClient();
+    const requestsCollection = await getCollection(Collections.BLOOD_REQUESTS);
 
-    // Check ownership
-    const { data: existing, error: fetchError } = await supabase
-      .from('blood_requests')
-      .select('requester_id, status')
-      .eq('id', id)
-      .single();
+    const existing = await requestsCollection.findOne({ _id: new ObjectId(id) });
 
-    if (fetchError || !existing) {
+    if (!existing) {
       return errorResponse('Blood request not found', 'NOT_FOUND', 404);
     }
 
@@ -116,52 +122,40 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return errorResponse('You can only edit your own requests', 'FORBIDDEN', 403);
     }
 
-    // Can't edit completed or cancelled requests
     if (['completed', 'cancelled'].includes(existing.status)) {
       return errorResponse('Cannot edit a completed or cancelled request', 'FORBIDDEN', 403);
     }
 
-    // Update the request
-    const { data: updated, error: updateError } = await supabase
-      .from('blood_requests')
-      .update({
-        ...data,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
+    const result = await requestsCollection.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: { ...data, updated_at: new Date() } },
+      { returnDocument: 'after' }
+    );
 
-    if (updateError) {
-      return errorResponse('Failed to update blood request', 'DATABASE_ERROR', 500);
-    }
-
-    return successResponse(updated, 'Blood request updated successfully');
+    return successResponse({
+      id: result?._id?.toString(),
+      ...result,
+      _id: undefined,
+    }, 'Blood request updated successfully');
   } catch (error) {
     console.error('Update blood request error:', error);
     return errorResponse('An unexpected error occurred', 'SERVER_ERROR', 500);
   }
 }
 
-// DELETE /api/blood-requests/:id - Cancel blood request (owner only)
+// DELETE /api/blood-requests/:id - Cancel blood request
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   
-  // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
   try {
-    const supabase = await createClient();
+    const requestsCollection = await getCollection(Collections.BLOOD_REQUESTS);
 
-    // Check ownership
-    const { data: existing, error: fetchError } = await supabase
-      .from('blood_requests')
-      .select('requester_id, status')
-      .eq('id', id)
-      .single();
+    const existing = await requestsCollection.findOne({ _id: new ObjectId(id) });
 
-    if (fetchError || !existing) {
+    if (!existing) {
       return errorResponse('Blood request not found', 'NOT_FOUND', 404);
     }
 
@@ -169,23 +163,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return errorResponse('You can only cancel your own requests', 'FORBIDDEN', 403);
     }
 
-    // Already completed or cancelled
     if (['completed', 'cancelled'].includes(existing.status)) {
       return errorResponse('Request is already ' + existing.status, 'CONFLICT', 409);
     }
 
-    // Soft delete - set status to cancelled
-    const { error: updateError } = await supabase
-      .from('blood_requests')
-      .update({
-        status: 'cancelled',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id);
-
-    if (updateError) {
-      return errorResponse('Failed to cancel blood request', 'DATABASE_ERROR', 500);
-    }
+    await requestsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { status: 'cancelled', updated_at: new Date() } }
+    );
 
     return successResponse({ cancelled: true }, 'Blood request cancelled successfully');
   } catch (error) {

@@ -1,59 +1,47 @@
 import { NextRequest } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getCollection, Collections, ObjectId } from '@/lib/db/mongodb';
 import { successResponse, errorResponse, getAuthUser } from '@/lib/api-utils';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// GET /api/blood-requests/:id/pending-confirmations - Get donations awaiting confirmation
+// GET /api/blood-requests/:id/pending-confirmations
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   
-  // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
   try {
-    const supabase = await createClient();
+    const donationsCollection = await getCollection(Collections.DONATIONS);
+    const usersCollection = await getCollection(Collections.USERS);
 
-    // Check if user owns this request
-    const { data: bloodRequest, error: fetchError } = await supabase
-      .from('blood_requests')
-      .select('requester_id')
-      .eq('id', id)
-      .single();
+    const pendingDonations = await donationsCollection
+      .find({ request_id: id, status: 'offered' })
+      .toArray();
 
-    if (fetchError || !bloodRequest) {
-      return errorResponse('Blood request not found', 'NOT_FOUND', 404);
-    }
-
-    if (bloodRequest.requester_id !== user!.id) {
-      return errorResponse('You can only view pending confirmations for your own requests', 'FORBIDDEN', 403);
-    }
-
-    // Get pending confirmations
-    const { data: donations, error: queryError } = await supabase
-      .from('blood_donations')
-      .select(`
-        id,
-        units_donated,
-        donation_date,
-        donor_notes,
-        marked_at,
-        status,
-        donor:profiles!blood_donations_donor_id_fkey(id, full_name, avatar_url, blood_group, phone_number)
-      `)
-      .eq('request_id', id)
-      .eq('status', 'pending_confirmation')
-      .order('marked_at', { ascending: false });
-
-    if (queryError) {
-      return errorResponse('Failed to fetch pending confirmations', 'DATABASE_ERROR', 500);
-    }
+    const donationsWithDonorInfo = await Promise.all(
+      pendingDonations.map(async (d: any) => {
+        const donor = await usersCollection.findOne({ _id: d.donor_id });
+        return {
+          id: d._id?.toString(),
+          status: d.status,
+          message: d.message,
+          created_at: d.created_at,
+          donor: donor ? {
+            id: donor._id,
+            full_name: donor.full_name,
+            blood_group: donor.blood_group,
+            phone_number: donor.phone_number,
+          } : null,
+        };
+      })
+    );
 
     return successResponse({
-      donations: donations || [],
+      pending_confirmations: donationsWithDonorInfo,
+      count: donationsWithDonorInfo.length,
     });
   } catch (error) {
     console.error('Get pending confirmations error:', error);

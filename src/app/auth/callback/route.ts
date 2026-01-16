@@ -1,27 +1,8 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
-  // if "next" is in param, use it as the redirect URL
-  const next = searchParams.get('next') ?? '/admin/dashboard'
-
-  if (code) {
-    const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    
-    if (!error) {
-      const isInvite = searchParams.get('type') === 'invite' || searchParams.get('type') === 'recovery'
-      
-      if (isInvite) {
-          return NextResponse.redirect(`${origin}/update-password`)
-      }
-
-      return NextResponse.redirect(`${origin}${next}`)
-    }
-  }
-
-  // return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+// Auth callback - Firebase handles auth client-side, this is no longer needed
+export async function GET(request: NextRequest) {
+  // With Firebase, OAuth callbacks are handled client-side
+  // Redirect to home page
+  return NextResponse.redirect(new URL('/admin', request.url));
 }

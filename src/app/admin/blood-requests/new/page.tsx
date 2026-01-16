@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,10 +16,10 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { MapPin, Loader2, HeartPulse, ArrowLeft } from "lucide-react";
+import { createRequest } from "../actions";
 
 export default function AdminCreateRequestPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [isLoading, setIsLoading] = useState(false);
   const [gettingLocation, setGettingLocation] = useState(false);
   
@@ -62,8 +61,6 @@ export default function AdminCreateRequestPage() {
         }));
         setGettingLocation(false);
         toast.success("Location detected successfully");
-        
-        // Optional: Reverse geocoding to fill city could be added here
       },
       (error) => {
         console.error(error);
@@ -78,33 +75,18 @@ export default function AdminCreateRequestPage() {
     setIsLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast.error("You must be logged in to create a request");
-        // router.push("/login?next=/request-blood");
-        // For development handling if auth is not fully set up:
-        // We'll proceed if RLS allows anon or if we mock it, but standard flow requires auth.
-        // Assuming user is authenticated or we handle the error from RLS.
-      }
-
-      const { error } = await supabase.from("blood_requests").insert({
-        requester_id: user?.id, // this might fail if RLS enforces auth and user is null
+      await createRequest({
         patient_name: formData.patient_name,
         blood_group: formData.blood_group,
         units: parseInt(formData.units),
         hospital: formData.hospital,
-        city: formData.city, // Should be filled or derived
+        city: formData.city,
         contact_number: formData.contact_number,
         urgency: formData.urgency,
         notes: formData.notes,
-        // Location as PostGIS point
-        location: formData.latitude && formData.longitude 
-          ? `POINT(${formData.longitude} ${formData.latitude})` 
-          : null,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
       });
-
-      if (error) throw error;
 
       toast.success("Blood request created successfully!");
       router.push("/admin/blood-requests");

@@ -13,44 +13,36 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { User } from "@supabase/supabase-js";
+import { useUser } from "@/contexts/UserContext";
+import { auth } from "@/lib/auth/firebase-client";
+import { useTheme } from "next-themes";
 
 interface HeaderProps {
   onMenuClick?: () => void;
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
-  const [isDark, setIsDark] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
+  const { theme, setTheme } = useTheme();
+  const { user } = useUser();
   const router = useRouter();
-  const supabase = createClient();
-
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    getUser();
-  }, [supabase.auth]);
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error(error.message);
-    } else {
+    try {
+      await auth.signOut();
+      await fetch('/api/auth/signout', { method: 'POST' });
       toast.success("Logged out successfully");
       router.push("/login");
       router.refresh();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to log out");
     }
   };
 
   const toggleTheme = () => {
-    setIsDark(!isDark);
-    document.documentElement.classList.toggle("light");
+    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
   return (
@@ -85,7 +77,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           onClick={toggleTheme}
           className="text-muted-foreground hover:text-foreground"
         >
-          {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>
 
         {/* Notifications */}
@@ -143,13 +135,13 @@ export function Header({ onMenuClick }: HeaderProps) {
               className="flex items-center gap-3 pl-2 pr-3"
             >
               <Avatar className="h-8 w-8 border-2 border-primary/20">
-                <AvatarImage src={user?.user_metadata?.avatar_url || "/avatars/admin.jpg"} alt="Admin" />
+                <AvatarImage src={user?.avatar_url || "/avatars/admin.jpg"} alt="Admin" />
                 <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
                   {user?.email?.substring(0,2).toUpperCase() || "AD"}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden text-left md:block">
-                <p className="text-sm font-medium">{user?.user_metadata?.full_name || "Admin User"}</p>
+                <p className="text-sm font-medium">{user?.full_name || "Admin User"}</p>
                 <p className="text-xs text-muted-foreground">{user?.email || "admin@bloodreq.com"}</p>
               </div>
             </Button>

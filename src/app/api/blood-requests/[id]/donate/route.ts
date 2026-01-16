@@ -1,100 +1,93 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { getCollection, Collections, ObjectId, BloodRequestDocument, UserDocument, DonationDocument } from '@/lib/db/mongodb';
 import { successResponse, errorResponse, getAuthUser, parseBody } from '@/lib/api-utils';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// POST /api/blood-requests/:id/donate - Offer to donate blood
 const donateSchema = z.object({
-  message: z.string().max(200).optional(),
+  message: z.string().optional(),
 });
 
+// POST /api/blood-requests/:id/donate - Offer to donate
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   
-  // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
-  // Parse and validate request body
   const { data, error: parseError } = await parseBody(request, donateSchema);
   if (parseError) return parseError;
 
   try {
-    // Use admin client since we already verified auth
-    const supabase = createAdminClient();
+    const requestsCollection = await getCollection<BloodRequestDocument>(Collections.BLOOD_REQUESTS);
+    const donationsCollection = await getCollection<DonationDocument>(Collections.DONATIONS);
+    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
 
-    // Check if request exists and is active
-    const { data: bloodRequest, error: fetchError } = await supabase
-      .from('blood_requests')
-      .select('id, requester_id, status, blood_group')
-      .eq('id', id)
-      .single();
-
-    if (fetchError || !bloodRequest) {
+    // 1. Check if request exists and is active
+    const bloodRequest = await requestsCollection.findOne({ _id: new ObjectId(id) });
+    if (!bloodRequest) {
       return errorResponse('Blood request not found', 'NOT_FOUND', 404);
     }
 
-    // Can't donate to your own request
+    if (bloodRequest.status !== 'pending' && bloodRequest.status !== 'in_progress') {
+      return errorResponse('Blood request is no longer accepting donations', 'CONFLICT', 409);
+    }
+
     if (bloodRequest.requester_id === user!.id) {
-      return errorResponse('You cannot donate to your own request', 'FORBIDDEN', 403);
+      return errorResponse('You cannot donate to your own request', 'CONFLICT', 409);
     }
 
-    // Request must be approved or in_progress
-    if (!['approved', 'in_progress'].includes(bloodRequest.status)) {
-      return errorResponse('This request is not accepting donations', 'FORBIDDEN', 403);
+    // 2. Check if user is eligible (basic check)
+    const donor = await usersCollection.findOne({ _id: user!.id });
+    if (!donor) {
+      return errorResponse('Donor profile not found', 'NOT_FOUND', 404);
     }
 
-    // Check if already offered
-    const { data: existingOffer } = await supabase
-      .from('blood_donations')
-      .select('id, status')
-      .eq('request_id', id)
-      .eq('donor_id', user!.id)
-      .single();
+    if (!donor.is_available_to_donate) {
+      // return errorResponse('Please update your availability status to donate', 'CONFLICT', 409);
+      // Optional: Auto-update availability or just warn
+    }
 
-    if (existingOffer) {
+    // 3. Check for existing donation offer
+    const existingDonation = await donationsCollection.findOne({
+      request_id: id,
+      donor_id: user!.id,
+      status: { $in: ['offered', 'accepted', 'completed'] }
+    });
+
+    if (existingDonation) {
       return errorResponse('You have already offered to donate for this request', 'CONFLICT', 409);
     }
 
-    // Create donation offer
-    const { data: donation, error: insertError } = await supabase
-      .from('blood_donations')
-      .insert({
-        request_id: id,
-        donor_id: user!.id,
-        status: 'offered',
-        message: data.message,
-      })
-      .select()
-      .single();
+    // 4. Create donation record
+    const newDonation: DonationDocument = {
+      // _id auto-generated
+      request_id: id,
+      donor_id: user!.id,
+      status: 'offered',
+      message: data.message,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
 
-    if (insertError) {
-      console.error('Insert error:', insertError);
-      return errorResponse('Failed to create donation offer', 'DATABASE_ERROR', 500);
+    const result = await donationsCollection.insertOne(newDonation as any);
+
+    // 5. Update request status to in_progress if it was pending
+    if (bloodRequest.status === 'pending') {
+      await requestsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { status: 'in_progress', updated_at: new Date() } }
+      );
     }
 
-    // Update request status to in_progress if it was approved
-    if (bloodRequest.status === 'approved') {
-      await supabase
-        .from('blood_requests')
-        .update({ status: 'in_progress' })
-        .eq('id', id);
-    }
-
-    // TODO: Send notification to requester
-
-    return successResponse(
-      {
-        donation_id: donation.id,
-        status: 'offered',
-      },
-      'Donation offer sent. The requester will be notified.',
-      201
-    );
+    return successResponse({
+      id: result.insertedId.toString(),
+      status: 'offered',
+      request_id: id,
+    }, 'Donation offer sent successfully', 201);
   } catch (error) {
     console.error('Donate error:', error);
     return errorResponse('An unexpected error occurred', 'SERVER_ERROR', 500);
