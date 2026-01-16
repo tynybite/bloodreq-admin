@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       .from('fundraisers')
       .select(`
         *,
-        creator:profiles!fundraisers_user_id_fkey(id, full_name, avatar_url)
+        fundraiser_documents(*)
       `, { count: 'exact' })
       .in('status', status === 'all' ? ['approved', 'in_progress', 'completed'] : [status]);
 
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         query = query.order('amount_raised', { ascending: false });
         break;
       case 'ending_soon':
-        query = query.order('end_date', { ascending: true });
+        query = query.order('deadline', { ascending: true });
         break;
       case 'newest':
       default:
@@ -58,17 +58,18 @@ export async function GET(request: NextRequest) {
     const { data: fundraisers, error: queryError, count } = await query;
 
     if (queryError) {
+      console.error('Fundraisers query error:', queryError);
       return errorResponse('Failed to fetch fundraisers', 'DATABASE_ERROR', 500);
     }
 
-    // Calculate progress for each
+    // Calculate progress for each (using amount_needed instead of goal_amount)
     const fundraisersWithProgress = (fundraisers || []).map((f: any) => ({
       ...f,
-      progress_percent: f.goal_amount > 0 
-        ? Math.min(100, Math.round((f.amount_raised / f.goal_amount) * 100))
+      progress_percent: f.amount_needed > 0 
+        ? Math.min(100, Math.round((f.amount_raised / f.amount_needed) * 100))
         : 0,
-      days_remaining: f.end_date 
-        ? Math.max(0, Math.ceil((new Date(f.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+      days_remaining: f.deadline 
+        ? Math.max(0, Math.ceil((new Date(f.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
         : null,
     }));
 

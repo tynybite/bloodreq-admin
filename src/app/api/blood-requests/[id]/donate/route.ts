@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { successResponse, errorResponse, getAuthUser, parseBody } from '@/lib/api-utils';
 
 interface RouteParams {
@@ -24,7 +24,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (parseError) return parseError;
 
   try {
-    const supabase = await createClient();
+    // Use admin client since we already verified auth
+    const supabase = createAdminClient();
 
     // Check if request exists and is active
     const { data: bloodRequest, error: fetchError } = await supabase

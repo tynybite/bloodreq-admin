@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { 
   successResponse, 
   errorResponse, 
@@ -82,21 +83,39 @@ export async function PATCH(request: NextRequest) {
   if (parseError) return parseError;
 
   try {
-    const supabase = await createClient();
+    // Use admin client to bypass RLS for profile upsert
+    const supabase = createAdminClient();
 
-    // Update profile
+    // Build update object with only provided fields
+    const updateData: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    // Only include fields that are explicitly provided
+    if (data.full_name !== undefined) updateData.full_name = data.full_name;
+    if (data.blood_group !== undefined) updateData.blood_group = data.blood_group;
+    if (data.phone_number !== undefined) updateData.phone_number = data.phone_number;
+    if (data.country !== undefined) updateData.country = data.country;
+    if (data.city !== undefined) updateData.city = data.city;
+    if (data.area !== undefined) updateData.area = data.area;
+    if (data.emergency_contact !== undefined) updateData.emergency_contact = data.emergency_contact;
+    if (data.is_available_to_donate !== undefined) updateData.is_available_to_donate = data.is_available_to_donate;
+
+    // Add user id for upsert
+    updateData.id = user!.id;
+
+    console.log('Upserting profile for user:', user!.id, 'with data:', updateData);
+
+    // Upsert profile (create if doesn't exist, update if exists)
     const { data: profile, error: updateError } = await supabase
       .from('profiles')
-      .update({
-        ...data,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', user!.id)
+      .upsert(updateData, { onConflict: 'id' })
       .select()
       .single();
 
     if (updateError) {
-      return errorResponse('Failed to update profile', 'DATABASE_ERROR', 500);
+      console.error('Profile update error:', updateError);
+      return errorResponse(`Failed to update profile: ${updateError.message}`, 'DATABASE_ERROR', 500);
     }
 
     return successResponse(profile, 'Profile updated successfully');
@@ -107,37 +126,33 @@ export async function PATCH(request: NextRequest) {
 }
 
 // DELETE /api/profile - Delete account
-const deleteProfileSchema = z.object({
-  confirmation: z.literal('DELETE MY ACCOUNT'),
-});
-
 export async function DELETE(request: NextRequest) {
   // Verify authentication
   const { user, error: authError } = await getAuthUser(request);
   if (authError) return authError;
 
-  // Parse and validate request body
-  const { data, error: parseError } = await parseBody(request, deleteProfileSchema);
-  if (parseError) return parseError;
-
   try {
-    const supabase = await createClient();
+    // Use admin client to bypass RLS
+    const supabase = createAdminClient();
 
-    // Soft delete - set status to 'deleted'
-    const { error: updateError } = await supabase
+    // Delete profile first
+    const { error: profileError } = await supabase
       .from('profiles')
-      .update({
-        status: 'deleted',
-        updated_at: new Date().toISOString(),
-      })
+      .delete()
       .eq('id', user!.id);
 
-    if (updateError) {
-      return errorResponse('Failed to delete account', 'DATABASE_ERROR', 500);
+    if (profileError) {
+      console.error('Profile delete error:', profileError);
+      return errorResponse('Failed to delete profile', 'DATABASE_ERROR', 500);
     }
 
-    // Sign out the user
-    await supabase.auth.signOut();
+    // Delete auth user using admin API
+    const { error: authDeleteError } = await supabase.auth.admin.deleteUser(user!.id);
+
+    if (authDeleteError) {
+      console.error('Auth delete error:', authDeleteError);
+      return errorResponse('Failed to delete account', 'AUTH_ERROR', 500);
+    }
 
     return successResponse(
       { deleted: true },

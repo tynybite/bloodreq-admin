@@ -72,3 +72,26 @@ create policy "Requesters can view donations for their requests"
 create policy "Donors can create donations"
   on blood_donations for insert
   with check (auth.uid() = donor_id);
+-- Enable RLS on profiles table (if not already enabled)
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- Allow users to view their own profile
+CREATE POLICY "Users can view own profile" ON profiles
+  FOR SELECT
+  USING (auth.uid() = id);
+
+-- Allow users to insert their own profile
+CREATE POLICY "Users can insert own profile" ON profiles
+  FOR INSERT
+  WITH CHECK (auth.uid() = id);
+
+-- Allow users to update their own profile
+CREATE POLICY "Users can update own profile" ON profiles
+  FOR UPDATE
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
+
+-- Allow service role to manage all profiles (for admin operations)
+CREATE POLICY "Service role has full access" ON profiles
+  FOR ALL
+  USING (auth.jwt() ->> 'role' = 'service_role');

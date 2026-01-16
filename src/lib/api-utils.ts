@@ -110,7 +110,10 @@ export async function getAuthUser(request: Request) {
 
 export const bloodGroupSchema = z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']);
 
-export const phoneSchema = z.string().regex(/^\+[1-9]\d{6,14}$/, 'Invalid phone number format (E.164)');
+export const phoneSchema = z.string().min(7, 'Phone number too short').max(20, 'Phone number too long');
+
+// Strict E.164 format if needed
+export const phoneSchemaStrict = z.string().regex(/^\+[1-9]\d{6,14}$/, 'Invalid phone number format (E.164)');
 
 export const emailSchema = z.string().email('Invalid email format');
 
