@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const donationsCollection = await getCollection(Collections.DONATIONS);
 
     // Fetch profile
-    const profile = await usersCollection.findOne({ _id: user!.id });
+    const profile = await usersCollection.findOne({ _id: user!.id } as any);
 
     if (!profile) {
       return errorResponse('Profile not found', 'NOT_FOUND', 404);
@@ -122,7 +122,7 @@ export async function PATCH(request: NextRequest) {
 
     // Upsert profile (create if doesn't exist, update if exists)
     const result = await usersCollection.findOneAndUpdate(
-      { _id: user!.id },
+      { _id: user!.id } as any,
       { 
         $set: updateData,
         $setOnInsert: { 
@@ -158,7 +158,7 @@ export async function DELETE(request: NextRequest) {
     const usersCollection = await getCollection<UserDocument>(Collections.USERS);
 
     // Delete profile from MongoDB
-    const { deletedCount } = await usersCollection.deleteOne({ _id: user!.id });
+    const { deletedCount } = await usersCollection.deleteOne({ _id: user!.id } as any);
 
     if (deletedCount === 0) {
       console.error('Profile not found for deletion:', user!.id);

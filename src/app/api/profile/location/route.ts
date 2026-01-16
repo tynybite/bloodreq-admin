@@ -30,7 +30,7 @@ export async function PATCH(request: NextRequest) {
     if (data.longitude) updateData.longitude = data.longitude;
 
     const result = await usersCollection.findOneAndUpdate(
-      { _id: user!.id },
+      { _id: user!.id } as any,
       { $set: updateData },
       { returnDocument: 'after' }
     );

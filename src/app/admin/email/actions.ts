@@ -36,7 +36,7 @@ export async function getSMTPSettings(): Promise<SMTPSettings | null> {
 
   try {
     const adminUsersCollection = await getCollection<AdminUserDocument>('admin_users');
-    const adminData = await adminUsersCollection.findOne({ _id: user.uid });
+    const adminData = await adminUsersCollection.findOne({ _id: user.uid } as any);
     return adminData?.settings?.smtp || null;
   } catch (error) {
     console.error('Error fetching SMTP settings:', error);
@@ -58,7 +58,7 @@ export async function saveSMTPSettings(smtp: SMTPSettings) {
     
     // Update with new SMTP settings
     await adminUsersCollection.updateOne(
-      { _id: user.uid },
+      { _id: user.uid } as any,
       { 
         $set: { 
           'settings.smtp': smtp,

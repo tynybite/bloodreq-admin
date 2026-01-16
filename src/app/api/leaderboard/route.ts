@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getCollection, Collections } from '@/lib/db/mongodb';
+import { getCollection, Collections, UserDocument } from '@/lib/db/mongodb';
 import { successResponse, errorResponse, getAuthUser } from '@/lib/api-utils';
 
 // GET /api/leaderboard - Get donation leaderboard
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
 
     const donationsCollection = await getCollection(Collections.DONATIONS);
-    const usersCollection = await getCollection(Collections.USERS);
+    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
 
     // Build date filter for period
     let dateFilter = {};
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     // Fetch user details
     const leaderboardWithUsers = await Promise.all(
       leaderboard.map(async (entry: any, index: number) => {
-        const userDoc = await usersCollection.findOne({ _id: entry._id });
+        const userDoc = await usersCollection.findOne({ _id: entry._id } as any);
         
         let badgeTier = 'none';
         if (entry.count >= 31) badgeTier = 'platinum';
@@ -75,14 +75,23 @@ export async function GET(request: NextRequest) {
           { $match: { count: { $gt: userDonationCount } } },
         ]).toArray();
         
-        const userDoc = await usersCollection.findOne({ _id: user!.id });
+        const userDoc = await usersCollection.findOne({ _id: user!.id } as any);
+        
+        let badgeTier = 'none';
+        if (userDonationCount >= 31) badgeTier = 'platinum';
+        else if (userDonationCount >= 16) badgeTier = 'gold';
+        else if (userDonationCount >= 6) badgeTier = 'silver';
+        else if (userDonationCount >= 1) badgeTier = 'bronze';
+        
         currentUserRank = {
           rank: higherCount.length + 1,
           user_id: user!.id,
           full_name: userDoc?.full_name || 'You',
           avatar_url: userDoc?.avatar_url,
+          blood_group: userDoc?.blood_group,
           donation_count: userDonationCount,
           points: userDonationCount * 100,
+          badge_tier: badgeTier,
           is_current_user: true,
         };
       }

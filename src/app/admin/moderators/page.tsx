@@ -28,7 +28,7 @@ export default async function ModeratorsPage() {
   if (user) {
     try {
       const adminUsersCollection = await getCollection('admin_users');
-      const adminUser = await adminUsersCollection.findOne({ _id: user.uid });
+      const adminUser = await adminUsersCollection.findOne({ uid: user.uid });
       
       console.log('Current user role lookup:', { userId: user.uid, adminUser });
       

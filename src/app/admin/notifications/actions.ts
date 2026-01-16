@@ -107,15 +107,16 @@ export async function getNotificationHistory(limit = 20) {
 
     // Map logs to include sender name
     return logs.map((log) => ({
-      id: log._id?.toString(),
+      id: log._id?.toString() ?? '',
       title: log.title,
       message: log.message,
       segment: log.segment,
-      blood_group: log.blood_group,
+      blood_group: log.blood_group ?? null,
       sent_by: log.sent_by,
       recipients: log.recipients,
       success: log.success,
-      created_at: log.created_at,
+      error: log.error ?? null,
+      created_at: log.created_at.toISOString(),
       admin_users: {
           full_name: profileMap.get(log.sent_by) || 'Unknown'
       }

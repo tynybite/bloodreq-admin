@@ -52,7 +52,7 @@ export async function getSettings() {
 
   // 2. Fetch User Preferences
   const prefsCollection = await getCollection<UserPreferences>('user_preferences');
-  const userPrefs = await prefsCollection.findOne({ _id: user.uid });
+  const userPrefs = await prefsCollection.findOne({ _id: user.uid } as any);
 
   // 3. Combine
   return {
@@ -119,7 +119,7 @@ export async function updateSettings(settings: any) {
   // 2. Update User Preferences (user_preferences)
   const prefsCollection = await getCollection<UserPreferences>('user_preferences');
   const userUpdate = prefsCollection.updateOne(
-    { _id: user.uid },
+    { _id: user.uid } as any,
     { 
       $set: { 
         appearance,

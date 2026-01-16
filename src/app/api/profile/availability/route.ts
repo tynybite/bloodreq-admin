@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { getCollection, Collections } from '@/lib/db/mongodb';
+import { getCollection, Collections, UserDocument } from '@/lib/db/mongodb';
 import { successResponse, errorResponse, getAuthUser, parseBody } from '@/lib/api-utils';
 
 // PATCH /api/profile/availability - Toggle donation availability
@@ -16,10 +16,10 @@ export async function PATCH(request: NextRequest) {
   if (parseError) return parseError;
 
   try {
-    const usersCollection = await getCollection(Collections.USERS);
+    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
     
     const result = await usersCollection.findOneAndUpdate(
-      { _id: user!.id },
+      { _id: user!.id } as any,
       { $set: { is_available_to_donate: data.is_available_to_donate, updated_at: new Date() } },
       { returnDocument: 'after' }
     );

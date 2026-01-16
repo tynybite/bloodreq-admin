@@ -41,7 +41,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // 2. Check if user is eligible (basic check)
-    const donor = await usersCollection.findOne({ _id: user!.id });
+    const donor = await usersCollection.findOne({ _id: user!.id } as any);
     if (!donor) {
       return errorResponse('Donor profile not found', 'NOT_FOUND', 404);
     }

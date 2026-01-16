@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { getCollection, Collections } from '@/lib/db/mongodb';
+import { getCollection, Collections, UserDocument } from '@/lib/db/mongodb';
 import { successResponse, errorResponse, getAuthUser, parseBody } from '@/lib/api-utils';
 
 // POST /api/auth/signup - Create user profile after Firebase signup
@@ -22,10 +22,10 @@ export async function POST(request: NextRequest) {
   if (parseError) return parseError;
 
   try {
-    const usersCollection = await getCollection(Collections.USERS);
+    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
 
     // Check if user already exists
-    const existingUser = await usersCollection.findOne({ _id: user!.id });
+    const existingUser = await usersCollection.findOne({ _id: user!.id } as any);
     if (existingUser) {
       return errorResponse('User profile already exists', 'ALREADY_EXISTS', 409);
     }
