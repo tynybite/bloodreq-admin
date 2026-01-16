@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslations } from "next-intl";
 
 import { useSidebar } from "./SidebarContext";
 import { 
@@ -19,7 +20,6 @@ import {
   MapPin,
   Shield,
   Megaphone,
-  Languages,
   BarChart3,
   ChevronLeft,
   Search,
@@ -27,26 +27,26 @@ import {
   CreditCard,
 } from "lucide-react";
 
-const menuItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
-  { icon: Droplets, label: 'Blood Requests', href: '/admin/blood-requests' },
-  { icon: HandCoins, label: 'Fundraisers', href: '/admin/fundraisers' },
-  { icon: Heart, label: 'Donations', href: '/admin/donations' },
-  { icon: Users, label: 'Users', href: '/admin/users' },
-  { icon: MapPin, label: 'Locations', href: '/admin/locations' },
-  { icon: Shield, label: 'Moderators', href: '/admin/moderators' },
-  { icon: Megaphone, label: 'Ads', href: '/admin/ads' },
-  { icon: Languages, label: 'Translations', href: '/admin/translations' },
-  { icon: BarChart3, label: 'Reports', href: '/admin/reports' },
-  { icon: Bell, label: 'Notifications', href: '/admin/notifications' },
-  { icon: Mail, label: 'Email Settings', href: '/admin/email' },
-  { icon: CreditCard, label: 'Payment Settings', href: '/admin/payment-settings' },
-  { icon: Settings, label: 'Settings', href: '/admin/settings' },
-];
-
 import { filterMenuItems, AdminRole } from "@/lib/rbac";
 import { useUser } from "@/contexts/UserContext";
 import { auth } from "@/lib/auth/firebase-client";
+
+// Menu item keys for translation
+const menuConfig = [
+  { icon: LayoutDashboard, labelKey: 'dashboard', href: '/admin/dashboard' },
+  { icon: Droplets, labelKey: 'bloodRequests', href: '/admin/blood-requests' },
+  { icon: HandCoins, labelKey: 'fundraisers', href: '/admin/fundraisers' },
+  { icon: Heart, labelKey: 'donations', href: '/admin/donations' },
+  { icon: Users, labelKey: 'users', href: '/admin/users' },
+  { icon: MapPin, labelKey: 'locations', href: '/admin/locations' },
+  { icon: Shield, labelKey: 'moderators', href: '/admin/moderators' },
+  { icon: Megaphone, labelKey: 'ads', href: '/admin/ads' },
+  { icon: BarChart3, labelKey: 'reports', href: '/admin/reports' },
+  { icon: Bell, labelKey: 'notifications', href: '/admin/notifications' },
+  { icon: Mail, labelKey: 'emailSettings', href: '/admin/email' },
+  { icon: CreditCard, labelKey: 'paymentSettings', href: '/admin/payment-settings' },
+  { icon: Settings, labelKey: 'settings', href: '/admin/settings' },
+];
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -54,9 +54,9 @@ export function Sidebar() {
   const { collapsed, setCollapsed } = useSidebar();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const t = useTranslations('nav');
   
   const { user } = useUser();
-  // Role is now part of user context (defaulted or fetched)
   const role = user?.role as AdminRole || 'admin'; 
 
   const handleSignOut = async () => {
@@ -68,6 +68,12 @@ export function Sidebar() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Build menu items with translated labels
+  const menuItems = menuConfig.map(item => ({
+    ...item,
+    label: t(item.labelKey as any) || item.labelKey,
+  }));
 
   const filteredMenuItems = role ? filterMenuItems(menuItems, role) : [];
 
@@ -102,7 +108,7 @@ export function Sidebar() {
                   className="overflow-hidden"
                 >
                   <h1 className="font-display text-lg font-bold tracking-tight text-foreground whitespace-nowrap">BloodReq</h1>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/80">Admin</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/80">{role?.replace('_', ' ') || 'Admin'}</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -150,7 +156,7 @@ export function Sidebar() {
             >
               <button className="flex w-full items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                 <Search className="h-4 w-4" />
-                <span className="flex-1 text-left">Search...</span>
+                <span className="flex-1 text-left">{t('search') || 'Search...'}</span>
                 <kbd className="pointer-events-none flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] leading-tight">
                   <Command className="h-3 w-3" />K
                 </kbd>
@@ -224,7 +230,7 @@ export function Sidebar() {
             className={`mt-1 flex w-full items-center rounded-xl px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 ${collapsed ? 'justify-center' : 'gap-3'}`}
           >
             <LogOut className="h-[18px] w-[18px]" />
-            {!collapsed && <span>Sign Out</span>}
+            {!collapsed && <span>{t('logout')}</span>}
           </button>
         </div>
       </div>

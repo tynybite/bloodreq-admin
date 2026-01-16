@@ -41,9 +41,9 @@ import { approveRequest, rejectRequest, deleteRequest, updateRequest, createRequ
 import { toast } from 'sonner';
 import RequestDetailSheet from './RequestDetailSheet';
 import CreateRequestSheet from './CreateRequestSheet';
+import { useTranslations } from 'next-intl';
 
 // Animation variants
-// ... (keep variants same)
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
@@ -95,6 +95,8 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const t = useTranslations('bloodRequests');
+  const tCommon = useTranslations('common');
 
   // Client-side filtering
   const filteredRequests = requests.filter(req => {
@@ -112,32 +114,26 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
   const handleCreate = async (data: any) => {
       try {
           await createRequest(data);
-          toast.success("Request created successfully");
-          // Re-fetch or optimistic update? Revalidation handles it on next load, 
-          // but for instant feedback we might want to append to 'requests'.
-          // Since we don't return the full created object easily (unless we fetch it), 
-          // let's rely on revalidatePath for now or we could add a "Refresh" logic.
-          // For now, simple success toast.
+          toast.success(tCommon('success'));
       } catch (error: any) {
-          toast.error("Failed to create request: " + error.message);
+          toast.error(tCommon('error') + ': ' + error.message);
       }
   };
 
   const handleAction = async (action: string, id: string, data?: any) => {
-    // setIsPending(true);
     try {
       if (action === 'approve') {
         await approveRequest(id, data);
-        toast.success('Request approved successfully');
+        toast.success(tCommon('success'));
       } else if (action === 'reject') {
         await rejectRequest(id, data);
-        toast.success('Request rejected');
+        toast.success(tCommon('success'));
       } else if (action === 'delete') {
         await deleteRequest(id);
-        toast.success('Request deleted');
+        toast.success(tCommon('success'));
       } else if (action === 'update') {
           await updateRequest(id, data);
-          toast.success('Request updated');
+          toast.success(tCommon('success'));
       }
       setIsDetailOpen(false);
       
@@ -150,7 +146,26 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
       }).filter(Boolean) as any[]);
 
     } catch (error: any) {
-      toast.error('Failed to update request: ' + error.message);
+      toast.error(tCommon('error') + ': ' + error.message);
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending': return t('pending');
+      case 'approved': return t('approved');
+      case 'rejected': return t('rejected');
+      case 'fulfilled': return t('fulfilled');
+      default: return status;
+    }
+  };
+
+  const getUrgencyLabel = (urgency: string) => {
+    switch (urgency) {
+      case 'critical': return t('critical');
+      case 'urgent': return t('urgent');
+      case 'planned': return t('planned');
+      default: return urgency;
     }
   };
 
@@ -165,10 +180,10 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
       <motion.div variants={itemVariants} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="font-display text-5xl font-bold tracking-tight bg-gradient-to-r from-rose-500 via-red-500 to-orange-500 bg-clip-text text-transparent">
-            Blood Requests
+            {t('title')}
           </h1>
           <p className="text-muted-foreground mt-2 text-lg">
-            Manage and verify incoming blood donation requests
+            {t('bloodGroup')}, {t('hospital')}, {t('urgency')}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -179,7 +194,7 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
             className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 text-white text-sm font-medium shadow-lg shadow-rose-500/25 hover:shadow-rose-500/40 transition-shadow flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            New Request
+            {t('newRequest')}
           </motion.button>
         </div>
       </motion.div>
@@ -207,7 +222,7 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by patient, hospital, requester..."
+              placeholder={tCommon('search') + '...'}
               className="pl-11 h-12 rounded-xl bg-card/50 border-border/50"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -216,10 +231,10 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
           <Select value={filterType} onValueChange={setFilterType}>
             <SelectTrigger className="w-[140px] h-12 rounded-xl bg-card/50 border-border/50">
               <Droplet className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="Blood Type" />
+              <SelectValue placeholder={t('bloodGroup')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="all">{tCommon('all')}</SelectItem>
               {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((type) => (
                 <SelectItem key={type} value={type}>{type}</SelectItem>
               ))}
@@ -227,23 +242,23 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
           </Select>
           <Select value={filterUrgency} onValueChange={setFilterUrgency}>
             <SelectTrigger className="w-[130px] h-12 rounded-xl bg-card/50 border-border/50">
-              <SelectValue placeholder="Urgency" />
+              <SelectValue placeholder={t('urgency')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Urgency</SelectItem>
-              <SelectItem value="critical">Critical</SelectItem>
-              <SelectItem value="urgent">Urgent</SelectItem>
-              <SelectItem value="planned">Planned</SelectItem>
+              <SelectItem value="all">{tCommon('all')}</SelectItem>
+              <SelectItem value="critical">{t('critical')}</SelectItem>
+              <SelectItem value="urgent">{t('urgent')}</SelectItem>
+              <SelectItem value="planned">{t('planned')}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-[130px] h-12 rounded-xl bg-card/50 border-border/50">
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder={t('status')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="all">{tCommon('all')}</SelectItem>
+              <SelectItem value="pending">{t('pending')}</SelectItem>
+              <SelectItem value="approved">{t('approved')}</SelectItem>
               <SelectItem value="in-progress">In Progress</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
@@ -308,7 +323,7 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
                           <h3 className="font-semibold text-base truncate">{request.patient_name}</h3>
                           <Badge className={`${urgencyStyles.bg} ${urgencyStyles.text} capitalize text-[10px] px-2 py-0.5 font-medium rounded-full`}>
                             {request.urgency === 'critical' && <Zap className="w-2.5 h-2.5 mr-1" />}
-                            {request.urgency}
+                            {getUrgencyLabel(request.urgency)}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground mt-0.5 truncate">
@@ -327,26 +342,26 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
                           setSelectedRequest(request);
                           setIsDetailOpen(true);
                         }} className="rounded-lg">
-                          <Eye className="mr-2 h-4 w-4" />View Details
+                          <Eye className="mr-2 h-4 w-4" />{tCommon('view')}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
                           className="text-emerald-500 focus:text-emerald-500 cursor-pointer rounded-lg"
                           onClick={() => handleAction('approve', request.id)}
                         >
-                          <CheckCircle2 className="mr-2 h-4 w-4" />Approve
+                          <CheckCircle2 className="mr-2 h-4 w-4" />{t('approve')}
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           className="text-amber-500 focus:text-amber-500 cursor-pointer rounded-lg"
                            onClick={() => handleAction('reject', request.id)}
                         >
-                          <XCircle className="mr-2 h-4 w-4" />Reject
+                          <XCircle className="mr-2 h-4 w-4" />{t('reject')}
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           className="text-rose-500 focus:text-rose-500 cursor-pointer rounded-lg"
                           onClick={() => handleAction('delete', request.id)}
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />Delete
+                          <Trash2 className="mr-2 h-4 w-4" />{tCommon('delete')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -361,7 +376,7 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary text-xs text-muted-foreground hover:text-foreground transition-colors group/map"
                     >
                       <MapPin className="w-3.5 h-3.5 group-hover/map:text-primary transition-colors" />
-                      <span className="max-w-[100px] truncate">{request.city || 'View Location'}</span>
+                      <span className="max-w-[100px] truncate">{request.city || t('city')}</span>
                     </a>
                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/50 text-xs text-muted-foreground">
                       <Clock className="w-3.5 h-3.5" />
@@ -381,7 +396,7 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
                       </div>
                     </div>
                     <Badge variant="outline" className={`${getStatusStyles(request.status)} capitalize text-[10px] px-2.5 py-1 font-medium`}>
-                      {request.status}
+                      {getStatusLabel(request.status)}
                     </Badge>
                   </div>
                 </div>
@@ -391,17 +406,17 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
         </AnimatePresence>
       </motion.div>
 
-      {/* Pagination - Placeholder */}
+      {/* Pagination */}
       <motion.div variants={itemVariants} className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Showing {filteredRequests.length} of {requests.length} requests
+          {filteredRequests.length} / {requests.length} {t('title').toLowerCase()}
         </p>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" disabled className="rounded-lg">
-            Previous
+            {tCommon('previous')}
           </Button>
           <Button variant="outline" size="sm" className="rounded-lg">
-            Next
+            {tCommon('next')}
           </Button>
         </div>
       </motion.div>

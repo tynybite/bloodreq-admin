@@ -29,6 +29,7 @@ import CountUp from "@/components/reactbits/CountUp";
 import { Moderator, toggleModeratorStatus } from './actions';
 import { toast } from "sonner";
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 // Animation variants
 const containerVariants = {
@@ -60,13 +61,15 @@ export default function ModeratorsClient({ moderators, currentUserId, currentUse
   const [selectedUser, setSelectedUser] = useState<{id: string, name: string} | null>(null);
   const [selectedModerator, setSelectedModerator] = useState<Moderator | null>(null);
   const router = useRouter();
+  const t = useTranslations('moderators');
+  const tCommon = useTranslations('common');
 
   const handleStatusToggle = async (id: string, currentStatus: boolean) => {
     try {
       await toggleModeratorStatus(id, !currentStatus);
-      toast.success(`Moderator ${!currentStatus ? 'activated' : 'suspended'} successfully`);
+      toast.success(tCommon('success'));
     } catch (error) {
-      toast.error("Failed to update status");
+      toast.error(tCommon('error'));
       console.error(error);
     }
   };
@@ -76,10 +79,19 @@ export default function ModeratorsClient({ moderators, currentUserId, currentUse
     mod.role.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'super_admin': return t('superAdmin');
+      case 'admin': return t('admin');
+      case 'moderator': return t('moderator');
+      case 'support': return t('support');
+      default: return role;
+    }
+  };
+
   const stats = [
-    { label: 'Active Moderators', value: moderators.filter(m => m.is_active).length, gradient: 'from-emerald-500 to-teal-400' },
+    { label: t('title') + ' Active', value: moderators.filter(m => m.is_active).length, gradient: 'from-emerald-500 to-teal-400' },
     { label: 'Total Team', value: moderators.length, gradient: 'from-blue-500 to-cyan-400' },
-    // Placeholder for actions today as we don't have an audit log table yet
     { label: 'Actions Today', value: 0, gradient: 'from-violet-500 to-purple-500' },
   ];
 
@@ -112,10 +124,10 @@ export default function ModeratorsClient({ moderators, currentUserId, currentUse
       <motion.div variants={itemVariants} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="font-display text-5xl font-bold tracking-tight bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-            Moderators
+            {t('title')}
           </h1>
           <p className="text-muted-foreground mt-2 text-lg">
-            Manage team access and monitor activity
+            {t('title')} - {t('role')} & {t('status')}
           </p>
         </div>
         <motion.button 
@@ -125,7 +137,7 @@ export default function ModeratorsClient({ moderators, currentUserId, currentUse
           className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-medium shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-shadow flex items-center gap-2"
         >
           <UserPlus className="w-4 h-4" />
-          Invite Moderator
+          {t('addModerator')}
         </motion.button>
       </motion.div>
 
@@ -184,7 +196,7 @@ export default function ModeratorsClient({ moderators, currentUserId, currentUse
             <div className="relative max-w-md">
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search team members..."
+                placeholder={tCommon('search') + '...'}
                 className="pl-11 h-12 rounded-xl bg-card/50 border-border/50"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -195,7 +207,7 @@ export default function ModeratorsClient({ moderators, currentUserId, currentUse
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {filteredModerators.length === 0 ? (
                  <div className="col-span-full text-center py-10 text-muted-foreground">
-                    No moderators found.
+                    {tCommon('noData')}
                  </div>
               ) : (
               filteredModerators.map((mod, i) => (
@@ -234,7 +246,7 @@ export default function ModeratorsClient({ moderators, currentUserId, currentUse
                             setEditModeratorOpen(true);
                           }}
                         >
-                          <Edit className="mr-2 h-4 w-4" />Edit
+                          <Edit className="mr-2 h-4 w-4" />{tCommon('edit')}
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                             onClick={() => {
@@ -244,7 +256,7 @@ export default function ModeratorsClient({ moderators, currentUserId, currentUse
                         >
                             <Key className="mr-2 h-4 w-4" /> Set Password
                         </DropdownMenuItem>
-                        <DropdownMenuItem><Eye className="mr-2 h-4 w-4" />View Activity</DropdownMenuItem>
+                        <DropdownMenuItem><Eye className="mr-2 h-4 w-4" />{tCommon('view')}</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
                             className={mod.is_active ? "text-amber-500" : "text-emerald-500"}
@@ -259,7 +271,7 @@ export default function ModeratorsClient({ moderators, currentUserId, currentUse
 
                   <div className="flex items-center gap-2 mb-4">
                     <Badge variant="outline" className={mod.role === 'admin' ? 'border-amber-500/50 text-amber-500' : ''}>
-                      {mod.role}
+                      {getRoleLabel(mod.role)}
                     </Badge>
                     <Badge className={mod.is_active ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' : 'bg-amber-500/10 text-amber-500 border-amber-500/30'}>
                       {mod.is_active ? 'active' : 'suspended'}
@@ -275,7 +287,7 @@ export default function ModeratorsClient({ moderators, currentUserId, currentUse
                             <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>
                           ))
                         ) : (
-                            <span className="text-xs text-muted-foreground">None</span>
+                            <span className="text-xs text-muted-foreground">{tCommon('none')}</span>
                         )}
                       </div>
                     </div>

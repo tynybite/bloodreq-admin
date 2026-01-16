@@ -44,6 +44,7 @@ import CountUp from "@/components/reactbits/CountUp";
 import { suspendUser, banUser, activateUser, bulkSuspendUsers, bulkBanUsers } from './actions';
 import { toast } from 'sonner';
 import { UserDetailSheet } from './UserDetailSheet';
+import { useTranslations } from 'next-intl';
 
 // Animation variants
 const containerVariants = {
@@ -84,6 +85,8 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const t = useTranslations('users');
+  const tCommon = useTranslations('common');
 
   const toggleUser = (id: string) => {
     setSelectedUsers(prev => 
@@ -101,11 +104,10 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
     try {
         if (action === 'suspend') await suspendUser(id);
         if (action === 'ban') await banUser(id);
-        if (action === 'activate') await activateUser(id); // Implement this in actions.ts if needed
+        if (action === 'activate') await activateUser(id);
 
-        toast.success(`User ${action}ed successfully`);
+        toast.success(tCommon('success'));
         
-        // Optimistic update
         setUsers(prev => prev.map(u => {
             if (u.id !== id) return u;
             return { ...u, status: action === 'activate' ? 'active' : (action === 'suspend' ? 'suspended' : 'banned') };
@@ -120,7 +122,7 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
           if (action === 'suspend') await bulkSuspendUsers(selectedUsers);
           if (action === 'ban') await bulkBanUsers(selectedUsers);
 
-          toast.success(`${selectedUsers.length} users ${action}ed`);
+          toast.success(tCommon('success'));
           
           setUsers(prev => prev.map(u => {
               if (selectedUsers.includes(u.id)) {
@@ -157,16 +159,16 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
       <motion.div variants={itemVariants} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="font-display text-5xl font-bold tracking-tight bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 bg-clip-text text-transparent">
-            Users
+            {t('title')}
           </h1>
           <p className="text-muted-foreground mt-2 text-lg">
-            Manage platform users, donors, and requesters
+            {t('totalUsers')}: {users.length}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" className="rounded-xl h-11">
             <Download className="w-4 h-4 mr-2" />
-            Export
+            {tCommon('export')}
           </Button>
           <motion.button 
             whileHover={{ scale: 1.02 }}
@@ -174,7 +176,7 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
             className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-sm font-medium shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-shadow flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            Add User
+            {tCommon('create')}
           </motion.button>
         </div>
       </motion.div>
@@ -202,7 +204,7 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by name, phone..."
+              placeholder={tCommon('search') + '...'}
               className="pl-11 h-12 rounded-xl bg-card/50 border-border/50"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -210,22 +212,22 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
           </div>
           <Select value={filterRole} onValueChange={setFilterRole}>
             <SelectTrigger className="w-[120px] h-12 rounded-xl bg-card/50 border-border/50">
-              <SelectValue placeholder="Role" />
+              <SelectValue placeholder={t('role')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Roles</SelectItem>
-              <SelectItem value="donor">Donor</SelectItem>
+              <SelectItem value="all">{tCommon('all')}</SelectItem>
+              <SelectItem value="donor">{t('donors')}</SelectItem>
               <SelectItem value="requester">Requester</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-[120px] h-12 rounded-xl bg-card/50 border-border/50">
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder={t('status')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="suspended">Suspended</SelectItem>
+              <SelectItem value="all">{tCommon('all')}</SelectItem>
+              <SelectItem value="active">{t('active')}</SelectItem>
+              <SelectItem value="suspended">{t('suspended')}</SelectItem>
               <SelectItem value="banned">Banned</SelectItem>
             </SelectContent>
           </Select>
@@ -239,7 +241,7 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
                 className="text-amber-500 border-amber-500/30"
                 onClick={() => handleBulkAction('suspend')}
             >
-              <Ban className="w-4 h-4 mr-1" /> Suspend
+              <Ban className="w-4 h-4 mr-1" /> {t('suspended')}
             </Button>
             <Button 
                 variant="outline" 
@@ -262,9 +264,9 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
           </div>
           <div>User</div>
           <div>Blood Group</div>
-          <div>Role</div>
+          <div>{t('role')}</div>
           <div>Activity</div>
-          <div>Status</div>
+          <div>{t('status')}</div>
           <div></div>
         </div>
 
@@ -315,7 +317,7 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
               <div className="text-sm">
                 <div className="flex items-center gap-2">
                   <Heart className="w-4 h-4 text-rose-500" />
-                  <span>{0} donations</span> {/* Mock/Join needed */}
+                  <span>0 donations</span>
                 </div>
               </div>
 
@@ -324,7 +326,7 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
                   {user.status === 'active' && <CheckCircle2 className="w-3 h-3 mr-1" />}
                   {user.status === 'suspended' && <Ban className="w-3 h-3 mr-1" />}
                   {user.status === 'banned' && <XCircle className="w-3 h-3 mr-1" />}
-                  {user.status}
+                  {user.status === 'active' ? t('active') : user.status === 'suspended' ? t('suspended') : user.status}
                 </Badge>
               </div>
 
@@ -336,23 +338,23 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem><Mail className="mr-2 h-4 w-4" />Email User</DropdownMenuItem>
-                    <DropdownMenuItem><Phone className="mr-2 h-4 w-4" />Call</DropdownMenuItem>
+                    <DropdownMenuItem><Mail className="mr-2 h-4 w-4" />{t('email')}</DropdownMenuItem>
+                    <DropdownMenuItem><Phone className="mr-2 h-4 w-4" />{t('phone')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => {
                         setSelectedUser(user);
                         setIsDetailOpen(true);
                     }}>
-                        <Shield className="mr-2 h-4 w-4" />View Profile
+                        <Shield className="mr-2 h-4 w-4" />{tCommon('view')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {user.status !== 'active' && (
                         <DropdownMenuItem className="text-emerald-500" onClick={() => handleAction('activate', user.id)}>
-                            <Unlock className="mr-2 h-4 w-4" />Activate
+                            <Unlock className="mr-2 h-4 w-4" />{t('active')}
                         </DropdownMenuItem>
                     )}
                     {user.status !== 'suspended' && (
                         <DropdownMenuItem className="text-amber-500" onClick={() => handleAction('suspend', user.id)}>
-                            <Ban className="mr-2 h-4 w-4" />Suspend
+                            <Ban className="mr-2 h-4 w-4" />{t('suspended')}
                         </DropdownMenuItem>
                     )}
                     {user.status !== 'banned' && (
@@ -371,14 +373,14 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
       {/* Pagination */}
       <motion.div variants={itemVariants} className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Showing {filteredUsers.length} of {users.length} users
+          {filteredUsers.length} / {users.length} {t('title').toLowerCase()}
         </p>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" disabled className="rounded-lg">
-            Previous
+            {tCommon('previous')}
           </Button>
           <Button variant="outline" size="sm" className="rounded-lg">
-            Next
+            {tCommon('next')}
           </Button>
         </div>
       </motion.div>

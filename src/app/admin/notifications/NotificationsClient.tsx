@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { sendAdminNotification, NotificationFormData } from './actions';
+import { useTranslations } from 'next-intl';
 
 interface NotificationLog {
   id: string;
@@ -69,31 +70,32 @@ export default function NotificationsClient({ initialHistory }: NotificationsCli
     segment: 'all',
     blood_group: undefined,
   });
+  const t = useTranslations('notifications');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.title.trim() || !formData.message.trim()) {
-      toast.error('Please fill in title and message');
+      toast.error(t('fillRequired'));
       return;
     }
 
     if (formData.segment === 'blood_group' && !formData.blood_group) {
-      toast.error('Please select a blood group');
+      toast.error(t('selectBloodGroupError'));
       return;
     }
 
     setIsLoading(true);
     try {
       const result = await sendAdminNotification(formData);
-      toast.success(`Notification sent to ${result.recipients || 0} users`);
+      toast.success(t('sentSuccess', { count: result.recipients || 0 }));
       
       // Add to local history
       setHistory(prev => [{
         id: result.id || 'temp',
         title: formData.title,
         message: formData.message,
-        segment: formData.segment === 'all' ? 'All' : `Blood Group: ${formData.blood_group}`,
+        segment: formData.segment === 'all' ? t('allUsers') : `${t('bloodGroup')}: ${formData.blood_group}`,
         blood_group: formData.blood_group || null,
         recipients: result.recipients || 0,
         success: true,
@@ -105,7 +107,7 @@ export default function NotificationsClient({ initialHistory }: NotificationsCli
       // Reset form
       setFormData({ title: '', message: '', segment: 'all', blood_group: undefined });
     } catch (error: any) {
-      toast.error(error.message || 'Failed to send notification');
+      toast.error(error.message || t('sendError'));
     } finally {
       setIsLoading(false);
     }
@@ -125,10 +127,10 @@ export default function NotificationsClient({ initialHistory }: NotificationsCli
             <div className="p-2 rounded-xl bg-primary/10">
               <Bell className="w-6 h-6 text-primary" />
             </div>
-            Push Notifications
+            {t('title')}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Send notifications to app users
+            {t('subtitle')}
           </p>
         </div>
       </motion.div>
@@ -142,15 +144,15 @@ export default function NotificationsClient({ initialHistory }: NotificationsCli
                 <Megaphone className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h2 className="font-semibold">Send Notification</h2>
-                <p className="text-sm text-muted-foreground">Broadcast to users</p>
+                <h2 className="font-semibold">{t('sendNotification')}</h2>
+                <p className="text-sm text-muted-foreground">{t('broadcastToUsers')}</p>
               </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Target Segment */}
               <div className="space-y-2">
-                <Label>Target Audience</Label>
+                <Label>{t('targetAudience')}</Label>
                 <Select 
                   value={formData.segment} 
                   onValueChange={(v: 'all' | 'blood_group') => setFormData(prev => ({ ...prev, segment: v }))}
@@ -162,13 +164,13 @@ export default function NotificationsClient({ initialHistory }: NotificationsCli
                     <SelectItem value="all">
                       <div className="flex items-center gap-2">
                         <Users className="w-4 h-4" />
-                        All Users
+                        {t('allUsers')}
                       </div>
                     </SelectItem>
                     <SelectItem value="blood_group">
                       <div className="flex items-center gap-2">
                         <Droplet className="w-4 h-4" />
-                        Blood Group
+                        {t('bloodGroup')}
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -178,13 +180,13 @@ export default function NotificationsClient({ initialHistory }: NotificationsCli
               {/* Blood Group Selector */}
               {formData.segment === 'blood_group' && (
                 <div className="space-y-2">
-                  <Label>Blood Group</Label>
+                  <Label>{t('bloodGroup')}</Label>
                   <Select 
                     value={formData.blood_group} 
                     onValueChange={(v) => setFormData(prev => ({ ...prev, blood_group: v }))}
                   >
                     <SelectTrigger className="h-11 rounded-xl">
-                      <SelectValue placeholder="Select blood group" />
+                      <SelectValue placeholder={t('selectBloodGroup')} />
                     </SelectTrigger>
                     <SelectContent>
                       <div className="grid grid-cols-4 gap-1 p-1">
@@ -205,11 +207,11 @@ export default function NotificationsClient({ initialHistory }: NotificationsCli
 
               {/* Title */}
               <div className="space-y-2">
-                <Label>Title</Label>
+                <Label>{t('notificationTitle')}</Label>
                 <Input
                   value={formData.title}
                   onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Notification title..."
+                  placeholder={t('titlePlaceholder')}
                   className="h-11 rounded-xl"
                   maxLength={100}
                 />
@@ -217,11 +219,11 @@ export default function NotificationsClient({ initialHistory }: NotificationsCli
 
               {/* Message */}
               <div className="space-y-2">
-                <Label>Message</Label>
+                <Label>{t('message')}</Label>
                 <Textarea
                   value={formData.message}
                   onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
-                  placeholder="Notification message..."
+                  placeholder={t('messagePlaceholder')}
                   className="min-h-[100px] rounded-xl resize-none"
                   maxLength={500}
                 />
@@ -239,12 +241,12 @@ export default function NotificationsClient({ initialHistory }: NotificationsCli
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sending...
+                    {t('sending')}
                   </>
                 ) : (
                   <>
                     <Send className="w-4 h-4 mr-2" />
-                    Send Notification
+                    {t('send')}
                   </>
                 )}
               </Button>
@@ -261,8 +263,8 @@ export default function NotificationsClient({ initialHistory }: NotificationsCli
                   <Clock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="font-semibold">Recent Notifications</h2>
-                  <p className="text-sm text-muted-foreground">History of sent notifications</p>
+                  <h2 className="font-semibold">{t('recentNotifications')}</h2>
+                  <p className="text-sm text-muted-foreground">{t('historyDescription')}</p>
                 </div>
               </div>
             </div>
@@ -271,7 +273,7 @@ export default function NotificationsClient({ initialHistory }: NotificationsCli
               {history.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Bell className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                  <p>No notifications sent yet</p>
+                  <p>{t('noNotifications')}</p>
                 </div>
               ) : (
                 history.map((item) => (
@@ -297,7 +299,7 @@ export default function NotificationsClient({ initialHistory }: NotificationsCli
                         {item.segment}
                       </Badge>
                       <span>•</span>
-                      <span>{item.recipients} recipients</span>
+                      <span>{item.recipients} {t('recipients')}</span>
                       <span>•</span>
                       <span>{new Date(item.created_at).toLocaleDateString()}</span>
                     </div>

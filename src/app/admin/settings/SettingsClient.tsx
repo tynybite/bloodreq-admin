@@ -15,6 +15,7 @@ import {
   Lock,
   Eye,
   EyeOff,
+  DollarSign,
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,8 @@ import {
 import { toast } from 'sonner';
 import { updateSettings } from './actions';
 import { useTheme } from 'next-themes';
+import { useTranslations } from 'next-intl';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 // Animation variants
 const containerVariants = {
@@ -74,6 +77,20 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
   const [showKey, setShowKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { theme: currentTheme, setTheme } = useTheme();
+  const t = useTranslations('settings');
+  const tCommon = useTranslations('common');
+  const { 
+    locale, 
+    setLocale, 
+    locales, 
+    localeNames, 
+    localeFlags,
+    currency, 
+    setCurrency, 
+    currencies, 
+    currencySymbols, 
+    currencyNames 
+  } = useLanguage();
   
   // Initialize state from props or defaults
   const [general, setGeneral] = useState(initialSettings?.general || {
@@ -127,10 +144,10 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
             apiKeys
         };
         await updateSettings(settingsToSave);
-        toast.success("Settings saved successfully");
+        toast.success(tCommon('success'));
     } catch (error) {
         console.error(error);
-        toast.error("Failed to save settings");
+        toast.error(tCommon('error'));
     } finally {
         setIsSaving(false);
     }
@@ -147,10 +164,10 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
       <motion.div variants={itemVariants} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="font-display text-5xl font-bold tracking-tight bg-gradient-to-r from-slate-600 via-zinc-600 to-neutral-600 dark:from-slate-300 dark:via-zinc-300 dark:to-neutral-300 bg-clip-text text-transparent">
-            Settings
+            {t('title')}
           </h1>
           <p className="text-muted-foreground mt-2 text-lg">
-            Configure platform settings and preferences
+            {t('subtitle')}
           </p>
         </div>
         <motion.button 
@@ -161,20 +178,20 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
           className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-rose-600 text-white text-sm font-medium shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-shadow flex items-center gap-2 disabled:opacity-70"
         >
           <Save className="w-4 h-4" />
-          {isSaving ? "Saving..." : "Save Changes"}
+          {isSaving ? t('saving') : t('saveChanges')}
         </motion.button>
       </motion.div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* General Settings */}
         <SettingsSection 
-          title="General" 
-          description="Platform name and localization" 
+          title={t('general.title')} 
+          description={t('general.description')} 
           icon={Globe}
           gradient="from-blue-500 to-cyan-400"
         >
           <div className="space-y-2">
-            <Label>Platform Name</Label>
+            <Label>{t('general.platformName')}</Label>
             <Input 
                 value={general.platformName} 
                 onChange={(e) => setGeneral({...general, platformName: e.target.value})}
@@ -182,7 +199,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
             />
           </div>
           <div className="space-y-2">
-            <Label>Support Email</Label>
+            <Label>{t('general.supportEmail')}</Label>
             <Input 
                 value={general.supportEmail}
                 onChange={(e) => setGeneral({...general, supportEmail: e.target.value})}
@@ -190,41 +207,77 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
                 className="rounded-xl bg-secondary/50" 
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Default Language</Label>
-              <Select value={general.language} onValueChange={(v) => setGeneral({...general, language: v})}>
-                <SelectTrigger className="rounded-xl bg-secondary/50">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="bn">Bengali</SelectItem>
-                  <SelectItem value="hi">Hindi</SelectItem>
-                  <SelectItem value="ur">Urdu</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Timezone</Label>
+          <div className="space-y-2">
+              <Label>{t('general.timezone')}</Label>
               <Select value={general.timezone} onValueChange={(v) => setGeneral({...general, timezone: v})}>
                 <SelectTrigger className="rounded-xl bg-secondary/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="asia_dhaka">Asia/Dhaka</SelectItem>
-                  <SelectItem value="asia_kolkata">Asia/Kolkata</SelectItem>
-                  <SelectItem value="asia_karachi">Asia/Karachi</SelectItem>
+                  <SelectItem value="asia_dhaka">Asia/Dhaka (UTC+6)</SelectItem>
+                  <SelectItem value="asia_kolkata">Asia/Kolkata (UTC+5:30)</SelectItem>
+                  <SelectItem value="asia_karachi">Asia/Karachi (UTC+5)</SelectItem>
+                  <SelectItem value="europe_berlin">Europe/Berlin (UTC+1)</SelectItem>
+                  <SelectItem value="europe_paris">Europe/Paris (UTC+1)</SelectItem>
+                  <SelectItem value="america_new_york">America/New York (UTC-5)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+        </SettingsSection>
+
+        {/* Language & Currency */}
+        <SettingsSection 
+          title={t('currency.title')} 
+          description={t('currency.description')} 
+          icon={DollarSign}
+          gradient="from-green-500 to-emerald-400"
+        >
+          <div className="space-y-2">
+            <Label>{t('currency.language')}</Label>
+            <Select value={locale} onValueChange={(v: any) => setLocale(v)}>
+              <SelectTrigger className="rounded-xl bg-secondary/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {locales.map((loc) => (
+                  <SelectItem key={loc} value={loc}>
+                    <span className="mr-2">{localeFlags[loc]}</span>
+                    {localeNames[loc]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{t('currency.languageHint')}</p>
+          </div>
+          <div className="space-y-2">
+            <Label>{t('currency.currency')}</Label>
+            <Select value={currency} onValueChange={(v: any) => setCurrency(v)}>
+              <SelectTrigger className="rounded-xl bg-secondary/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {currencies.map((cur) => (
+                  <SelectItem key={cur} value={cur}>
+                    <span className="font-mono mr-2">{currencySymbols[cur]}</span>
+                    {currencyNames[cur]} ({cur})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{t('currency.currencyHint')}</p>
+          </div>
+          <div className="p-4 rounded-xl bg-secondary/30 border border-border/30">
+            <p className="text-sm text-muted-foreground">{t('currency.preview')}</p>
+            <p className="text-2xl font-bold mt-1">
+              {currencySymbols[currency]}1,234.56
+            </p>
           </div>
         </SettingsSection>
 
         {/* Notifications */}
         <SettingsSection 
-          title="Notifications" 
-          description="Alert channels and preferences" 
+          title={t('notifications.title')} 
+          description={t('notifications.description')} 
           icon={Bell}
           gradient="from-amber-500 to-orange-400"
         >
@@ -232,8 +285,8 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
             <div className="flex items-center gap-3">
               <Smartphone className="w-5 h-5 text-muted-foreground" />
               <div>
-                <p className="font-medium">Push Notifications</p>
-                <p className="text-sm text-muted-foreground">Mobile app alerts</p>
+                <p className="font-medium">{t('notifications.push')}</p>
+                <p className="text-sm text-muted-foreground">{t('notifications.pushDesc')}</p>
               </div>
             </div>
             <Switch checked={notifications.push} onCheckedChange={(v) => setNotifications({...notifications, push: v})} />
@@ -242,8 +295,8 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
             <div className="flex items-center gap-3">
               <Smartphone className="w-5 h-5 text-muted-foreground" />
               <div>
-                <p className="font-medium">SMS Notifications</p>
-                <p className="text-sm text-muted-foreground">Text message alerts</p>
+                <p className="font-medium">{t('notifications.sms')}</p>
+                <p className="text-sm text-muted-foreground">{t('notifications.smsDesc')}</p>
               </div>
             </div>
             <Switch checked={notifications.sms} onCheckedChange={(v) => setNotifications({...notifications, sms: v})} />
@@ -252,14 +305,14 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
             <div className="flex items-center gap-3">
               <Mail className="w-5 h-5 text-muted-foreground" />
               <div>
-                <p className="font-medium">Email Notifications</p>
-                <p className="text-sm text-muted-foreground">Email alerts for admins</p>
+                <p className="font-medium">{t('notifications.email')}</p>
+                <p className="text-sm text-muted-foreground">{t('notifications.emailDesc')}</p>
               </div>
             </div>
             <Switch checked={notifications.email} onCheckedChange={(v) => setNotifications({...notifications, email: v})} />
           </div>
           <div className="space-y-2 pt-4 border-t border-border/50">
-            <Label>Default Notification Radius</Label>
+            <Label>{t('notifications.radius')}</Label>
             <div className="flex items-center gap-3">
               <Input 
                 type="number" 
@@ -274,8 +327,8 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
 
         {/* Security */}
         <SettingsSection 
-          title="Security" 
-          description="Access control and authentication" 
+          title={t('security.title')} 
+          description={t('security.description')} 
           icon={Shield}
           gradient="from-emerald-500 to-teal-400"
         >
@@ -283,8 +336,8 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
             <div className="flex items-center gap-3">
               <Lock className="w-5 h-5 text-muted-foreground" />
               <div>
-                <p className="font-medium">Two-Factor Authentication</p>
-                <p className="text-sm text-muted-foreground">Require 2FA for admin login</p>
+                <p className="font-medium">{t('security.twoFactor')}</p>
+                <p className="text-sm text-muted-foreground">{t('security.twoFactorDesc')}</p>
               </div>
             </div>
             <Switch checked={security.twoFactor} onCheckedChange={(v) => setSecurity({...security, twoFactor: v})} />
@@ -293,14 +346,14 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
             <div className="flex items-center gap-3">
               <Globe className="w-5 h-5 text-muted-foreground" />
               <div>
-                <p className="font-medium">IP Restriction</p>
-                <p className="text-sm text-muted-foreground">Whitelist admin IPs only</p>
+                <p className="font-medium">{t('security.ipRestriction')}</p>
+                <p className="text-sm text-muted-foreground">{t('security.ipRestrictionDesc')}</p>
               </div>
             </div>
             <Switch checked={security.ipRestriction} onCheckedChange={(v) => setSecurity({...security, ipRestriction: v})} />
           </div>
           <div className="space-y-2 pt-4 border-t border-border/50">
-            <Label>Session Timeout</Label>
+            <Label>{t('security.sessionTimeout')}</Label>
             <div className="flex items-center gap-3">
               <Input 
                 type="number" 
@@ -315,26 +368,26 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
 
         {/* Appearance */}
         <SettingsSection 
-          title="Appearance" 
-          description="Theme and visual preferences" 
+          title={t('appearance.title')} 
+          description={t('appearance.description')} 
           icon={Palette}
           gradient="from-violet-500 to-purple-500"
         >
           <div className="space-y-2">
-            <Label>Default Theme</Label>
+            <Label>{t('appearance.theme')}</Label>
             <Select value={appearance.theme} onValueChange={(v) => setAppearance({...appearance, theme: v})}>
               <SelectTrigger className="rounded-xl bg-secondary/50">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="light">Light</SelectItem>
-                <SelectItem value="dark">Dark</SelectItem>
-                <SelectItem value="system">System</SelectItem>
+                <SelectItem value="light">{t('appearance.light')}</SelectItem>
+                <SelectItem value="dark">{t('appearance.dark')}</SelectItem>
+                <SelectItem value="system">{t('appearance.system')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Primary Color</Label>
+            <Label>{t('appearance.primaryColor')}</Label>
             <div className="flex items-center gap-3">
               <div 
                 className="w-10 h-10 rounded-xl border cursor-pointer" 
@@ -350,8 +403,8 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
           </div>
           <div className="flex items-center justify-between pt-4 border-t border-border/50">
             <div>
-              <p className="font-medium">Enable Animations</p>
-              <p className="text-sm text-muted-foreground">Motion effects and transitions</p>
+              <p className="font-medium">{t('appearance.animations')}</p>
+              <p className="text-sm text-muted-foreground">{t('appearance.animationsDesc')}</p>
             </div>
             <Switch 
                 checked={appearance.enableAnimations} 
@@ -363,14 +416,14 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
 
       {/* API Keys */}
       <SettingsSection 
-        title="API Keys" 
-        description="External service credentials" 
+        title={t('apiKeys.title')} 
+        description={t('apiKeys.description')} 
         icon={Key}
         gradient="from-rose-500 to-pink-500"
       >
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-2">
-            <Label>MongoDB URI</Label>
+            <Label>{t('apiKeys.mongodbUri')}</Label>
             <Input 
                 value={apiKeys.mongodbUri} 
                 onChange={(e) => setApiKeys({...apiKeys, mongodbUri: e.target.value})}
@@ -379,7 +432,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
             />
           </div>
           <div className="space-y-2">
-            <Label>Firebase Project ID</Label>
+            <Label>{t('apiKeys.firebaseProjectId')}</Label>
             <div className="relative">
               <Input 
                 type={showKey ? "text" : "password"} 
@@ -399,7 +452,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Google AdMob App ID</Label>
+            <Label>{t('apiKeys.admobAppId')}</Label>
             <Input 
                 value={apiKeys.admobAppId} 
                 onChange={(e) => setApiKeys({...apiKeys, admobAppId: e.target.value})}
@@ -408,7 +461,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
             />
           </div>
           <div className="space-y-2">
-            <Label>Facebook App ID</Label>
+            <Label>{t('apiKeys.facebookAppId')}</Label>
             <Input 
                 value={apiKeys.facebookAppId} 
                 onChange={(e) => setApiKeys({...apiKeys, facebookAppId: e.target.value})}

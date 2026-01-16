@@ -17,6 +17,8 @@ import {
   Zap,
 } from 'lucide-react';
 import CountUp from "@/components/reactbits/CountUp";
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 // Animation variants
 const containerVariants = {
@@ -39,19 +41,19 @@ interface DashboardData {
     pendingRequests: number;
     pendingDonations: number;
     activeDonors: number;
-    recentActivity: any[]; // refine type later
+    recentActivity: any[];
     bloodTypeDistribution: { type: string; count: number; percentage: number }[];
 }
 
-import { useRouter } from 'next/navigation';
-
 export default function DashboardClient({ data }: { data: DashboardData }) {
   const router = useRouter();
+  const t = useTranslations('dashboard');
+  const tCommon = useTranslations('common');
 
   // Construct metrics from props
   const metrics = [
     { 
-      label: 'Total Users', 
+      label: t('totalUsers'), 
       value: data.totalUsers, 
       change: 0, 
       icon: Users,
@@ -59,7 +61,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       shadowColor: 'shadow-blue-500/25'
     },
     { 
-      label: 'Blood Requests', 
+      label: t('bloodRequests'), 
       value: data.totalRequests, 
       change: 0, 
       icon: Droplet,
@@ -67,7 +69,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       shadowColor: 'shadow-rose-500/25'
     },
     { 
-      label: 'Donations', 
+      label: t('donations'), 
       value: data.totalDonations, 
       change: 0, 
       icon: Heart,
@@ -75,7 +77,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       shadowColor: 'shadow-amber-500/25'
     },
     { 
-      label: 'Active Donors', 
+      label: t('activeDonors'), 
       value: data.activeDonors, 
       change: 0, 
       prefix: '',
@@ -87,18 +89,18 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
   const pendingActions = [
     { 
-        label: 'Blood Requests Pending', 
+        label: t('pendingRequests'), 
         count: data.pendingRequests, 
         color: 'text-rose-500', 
         bg: 'bg-rose-500', 
         onClick: () => router.push('/admin/blood-requests?status=pending') 
     },
     { 
-        label: 'Donations to Verify', 
+        label: t('donations') + ' ' + tCommon('pending'), 
         count: data.pendingDonations || 0, 
         color: 'text-blue-500', 
         bg: 'bg-blue-500',
-        onClick: () => router.push('/admin/donations') // Assuming route exists or will be created
+        onClick: () => router.push('/admin/donations')
     },
   ];
 
@@ -123,10 +125,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       <motion.div variants={itemVariants} className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="font-display text-5xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground/80 to-foreground/60 bg-clip-text text-transparent">
-            Dashboard
+            {t('title')}
           </h1>
           <p className="text-muted-foreground mt-2 text-lg">
-            Platform overview and quick actions
+            {t('subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -163,7 +165,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 link.click();
             }}
           >
-            Download Report
+            {t('downloadReport')}
           </motion.button>
           <motion.button 
             whileHover={{ scale: 1.02 }}
@@ -172,7 +174,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-sm font-medium shadow-lg shadow-rose-500/25 hover:shadow-rose-500/40 transition-shadow"
           >
             <Zap className="w-4 h-4 inline mr-2" />
-            Manage Requests
+            {t('manageRequests')}
           </motion.button>
         </div>
       </motion.div>
@@ -222,13 +224,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500 to-purple-500">
                   <Activity className="w-5 h-5 text-white" />
                 </div>
-                <h2 className="font-display text-xl font-semibold">Recent Activity</h2>
+                <h2 className="font-display text-xl font-semibold">{t('recentActivity')}</h2>
               </div>
               <button 
                 onClick={() => router.push('/admin/blood-requests')}
                 className="text-sm text-primary hover:underline flex items-center gap-1"
               >
-                View All <ArrowRight className="w-4 h-4" />
+                {tCommon('viewAll')} <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -274,7 +276,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500">
                 <AlertCircle className="w-5 h-5 text-white" />
               </div>
-              <h2 className="font-display text-xl font-semibold">Pending Actions</h2>
+              <h2 className="font-display text-xl font-semibold">{t('pendingActions')}</h2>
             </div>
           </div>
           <div className="p-4 space-y-3">
@@ -302,14 +304,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           {/* Quick Stats */}
           <div className="p-4 pt-2">
             <div className="rounded-xl bg-gradient-to-br from-rose-500/10 via-pink-500/10 to-orange-500/10 border border-rose-500/20 p-4">
-              <p className="text-sm font-medium text-muted-foreground mb-2">Urgent Need</p>
-              <p className="text-lg font-bold">Critical Blood Requests</p>
-              <p className="text-sm text-muted-foreground mt-1">Require immediate attention</p>
+              <p className="text-sm font-medium text-muted-foreground mb-2">{t('pendingRequests')}</p>
+              <p className="text-lg font-bold">{t('viewCritical')}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t('subtitle')}</p>
               <button 
                 onClick={() => router.push('/admin/blood-requests?urgency=critical')}
                 className="mt-3 w-full py-2 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-600 transition-colors"
               >
-                View Critical Requests
+                {t('viewCritical')}
               </button>
             </div>
           </div>
@@ -326,9 +328,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             <div className="p-2 rounded-lg bg-gradient-to-br from-rose-500 to-red-600">
               <Droplet className="w-5 h-5 text-white" />
             </div>
-            <h2 className="font-display text-xl font-semibold">Blood Type Distribution</h2>
+            <h2 className="font-display text-xl font-semibold">{t('bloodTypeDistribution')}</h2>
           </div>
-          <span className="text-sm text-muted-foreground">This Month</span>
         </div>
         
         <div className="grid grid-cols-4 md:grid-cols-8 gap-4">

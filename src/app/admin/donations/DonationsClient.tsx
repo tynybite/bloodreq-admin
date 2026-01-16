@@ -38,6 +38,7 @@ import CountUp from "@/components/reactbits/CountUp";
 import { FinancialDonation, BloodDonation, verifyFinancialDonation, failFinancialDonation } from './actions';
 import { toast } from "sonner";
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 // Animation variants
 const containerVariants = {
@@ -85,13 +86,15 @@ export default function DonationsClient({ financialDonations, bloodDonations }: 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const router = useRouter();
+  const t = useTranslations('donations');
+  const tCommon = useTranslations('common');
 
   const handleVerify = async (id: string) => {
     try {
       await verifyFinancialDonation(id);
-      toast.success("Donation verified successfully");
+      toast.success(t('donationVerified'));
     } catch (error) {
-      toast.error("Failed to verify donation");
+      toast.error(t('verifyError'));
       console.error(error);
     }
   };
@@ -99,9 +102,9 @@ export default function DonationsClient({ financialDonations, bloodDonations }: 
   const handleFail = async (id: string) => {
     try {
       await failFinancialDonation(id);
-      toast.success("Donation marked as failed");
+      toast.success(t('donationFailed'));
     } catch (error) {
-      toast.error("Failed to update donation status");
+      toast.error(t('updateError'));
       console.error(error);
     }
   };
@@ -141,15 +144,36 @@ export default function DonationsClient({ financialDonations, bloodDonations }: 
 
   // Calculate stats
   const pendingCount = allDonations.filter(d => d.displayStatus === 'pending' || d.displayStatus === 'offered').length;
-  // Approximating "Verified Today" as verified count for simplicity, or we could filter by date
   const verifiedCount = allDonations.filter(d => d.displayStatus === 'verified' || d.displayStatus === 'completed' || d.displayStatus === 'accepted').length;
   
   const stats = [
-    { label: 'Pending Verification', value: pendingCount, gradient: 'from-amber-500 to-orange-400' },
-    { label: 'Verified Total', value: verifiedCount, gradient: 'from-emerald-500 to-teal-400' },
-    { label: 'Blood Donations', value: bloodDonations.length, gradient: 'from-rose-500 to-pink-400' },
-    { label: 'Financial Donations', value: financialDonations.length, gradient: 'from-blue-500 to-cyan-400' },
+    { label: t('pendingVerification'), value: pendingCount, gradient: 'from-amber-500 to-orange-400' },
+    { label: t('verifiedTotal'), value: verifiedCount, gradient: 'from-emerald-500 to-teal-400' },
+    { label: t('bloodDonations'), value: bloodDonations.length, gradient: 'from-rose-500 to-pink-400' },
+    { label: t('financialDonations'), value: financialDonations.length, gradient: 'from-blue-500 to-cyan-400' },
   ];
+
+  const tabs = [
+    { key: 'all', label: t('allDonations'), icon: Activity },
+    { key: 'blood', label: t('blood'), icon: Droplet },
+    { key: 'financial', label: t('financial'), icon: Wallet },
+  ];
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending':
+      case 'offered':
+        return t('pending');
+      case 'verified':
+      case 'completed':
+      case 'accepted':
+        return t('verified');
+      case 'failed':
+        return t('failed');
+      default:
+        return status;
+    }
+  };
 
   return (
     <motion.div 
@@ -162,15 +186,15 @@ export default function DonationsClient({ financialDonations, bloodDonations }: 
       <motion.div variants={itemVariants} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="font-display text-5xl font-bold tracking-tight bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 bg-clip-text text-transparent">
-            Donations
+            {t('title')}
           </h1>
           <p className="text-muted-foreground mt-2 text-lg">
-            Manage and verify blood & financial donations
+            {t('subtitle')}
           </p>
         </div>
         <Button variant="outline" className="rounded-xl h-11" onClick={() => router.refresh()}>
           <RefreshCw className="w-4 h-4 mr-2" />
-          Refresh
+          {tCommon('refresh')}
         </Button>
       </motion.div>
 
@@ -193,11 +217,7 @@ export default function DonationsClient({ financialDonations, bloodDonations }: 
 
       {/* Tabs */}
       <motion.div variants={itemVariants} className="flex gap-2">
-        {[
-          { key: 'all', label: 'All Donations', icon: Activity },
-          { key: 'blood', label: 'Blood', icon: Droplet },
-          { key: 'financial', label: 'Financial', icon: Wallet },
-        ].map((tab) => (
+        {tabs.map((tab) => (
           <motion.button
             key={tab.key}
             whileHover={{ scale: 1.02 }}
@@ -220,21 +240,21 @@ export default function DonationsClient({ financialDonations, bloodDonations }: 
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by donor, transaction ID..."
+            placeholder={t('searchPlaceholder')}
             className="pl-11 h-12 rounded-xl bg-card/50 border-border/50"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[130px] h-12 rounded-xl bg-card/50 border-border/50">
-            <SelectValue placeholder="Status" />
+          <SelectTrigger className="w-[160px] h-12 rounded-xl bg-card/50 border-border/50">
+            <SelectValue placeholder={tCommon('status')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="verified">Verified</SelectItem>
-            <SelectItem value="failed">Failed</SelectItem>
+            <SelectItem value="all">{t('allStatus')}</SelectItem>
+            <SelectItem value="pending">{t('pending')}</SelectItem>
+            <SelectItem value="verified">{t('verified')}</SelectItem>
+            <SelectItem value="failed">{t('failed')}</SelectItem>
           </SelectContent>
         </Select>
       </motion.div>
@@ -248,7 +268,7 @@ export default function DonationsClient({ financialDonations, bloodDonations }: 
                animate={{ opacity: 1 }}
                className="text-center py-10 text-muted-foreground"
              >
-               No donations found.
+               {t('noDonations')}
              </motion.div>
           ) : (
           filteredDonations.map((donation, i) => (
@@ -279,7 +299,7 @@ export default function DonationsClient({ financialDonations, bloodDonations }: 
                 <div className="flex items-center gap-3 mb-1">
                   <h3 className="font-semibold">{donation.donorName}</h3>
                   <Badge variant="outline" className="text-xs capitalize">
-                    {donation.type}
+                    {donation.type === 'blood' ? t('blood') : t('financial')}
                   </Badge>
                   {donation.type === 'blood' && donation.request && bloodGroupColors[donation.request.blood_group] && (
                     <span className={`px-2 py-0.5 rounded text-xs font-bold text-white bg-gradient-to-r ${bloodGroupColors[donation.request.blood_group]}`}>
@@ -314,7 +334,7 @@ export default function DonationsClient({ financialDonations, bloodDonations }: 
                 {['verified', 'completed', 'accepted'].includes(donation.displayStatus) && <CheckCircle2 className="w-3 h-3 mr-1" />}
                 {['pending', 'offered'].includes(donation.displayStatus) && <Clock className="w-3 h-3 mr-1" />}
                 {donation.displayStatus === 'failed' && <XCircle className="w-3 h-3 mr-1" />}
-                {donation.displayStatus === 'completed' ? 'verified' : donation.displayStatus}
+                {getStatusLabel(donation.displayStatus)}
               </Badge>
 
               {/* Actions */}
@@ -326,7 +346,7 @@ export default function DonationsClient({ financialDonations, bloodDonations }: 
                       whileTap={{ scale: 0.9 }}
                       onClick={() => handleVerify(donation.id)}
                       className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center hover:bg-emerald-500/20"
-                      title="Verify Donation"
+                      title={t('verifyDonation')}
                     >
                       <CheckCircle2 className="w-4 h-4" />
                     </motion.button>
@@ -335,24 +355,12 @@ export default function DonationsClient({ financialDonations, bloodDonations }: 
                       whileTap={{ scale: 0.9 }}
                       onClick={() => handleFail(donation.id)}
                       className="w-9 h-9 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center hover:bg-rose-500/20"
-                      title="Mark as Failed"
+                      title={t('markAsFailed')}
                     >
                       <XCircle className="w-4 h-4" />
                     </motion.button>
                   </>
                 )}
-                {/* 
-                // Placeholder for screenshot view
-                {donation.type === 'financial' && (donation as any).hasScreenshot && (
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    className="w-9 h-9 rounded-lg bg-secondary/50 flex items-center justify-center hover:bg-secondary"
-                  >
-                    <ImageIcon className="w-4 h-4" />
-                  </motion.button>
-                )}
-                */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg">
@@ -360,13 +368,13 @@ export default function DonationsClient({ financialDonations, bloodDonations }: 
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem><Eye className="mr-2 h-4 w-4" />View Details</DropdownMenuItem>
+                    <DropdownMenuItem><Eye className="mr-2 h-4 w-4" />{t('viewDetails')}</DropdownMenuItem>
                     {donation.type === 'blood' && (
-                        <DropdownMenuItem>View Request</DropdownMenuItem>
+                        <DropdownMenuItem>{t('viewRequest')}</DropdownMenuItem>
                     )}
-                    <DropdownMenuItem>Contact Donor</DropdownMenuItem>
+                    <DropdownMenuItem>{t('contactDonor')}</DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-rose-500">Mark as Fraudulent</DropdownMenuItem>
+                    <DropdownMenuItem className="text-rose-500">{t('markFraudulent')}</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -374,23 +382,6 @@ export default function DonationsClient({ financialDonations, bloodDonations }: 
           )))}
         </AnimatePresence>
       </motion.div>
-
-      {/* Pagination - Placeholder for now as we don't have pagination logic yet */}
-      {/* 
-      <motion.div variants={itemVariants} className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Showing 1-{filteredDonations.length} of {filteredDonations.length} donations
-        </p>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled className="rounded-lg">
-            Previous
-          </Button>
-          <Button variant="outline" size="sm" className="rounded-lg">
-            Next
-          </Button>
-        </div>
-      </motion.div>
-       */}
     </motion.div>
   );
 }

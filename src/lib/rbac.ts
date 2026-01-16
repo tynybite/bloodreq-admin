@@ -1,29 +1,26 @@
-export type AdminRole = 'super_admin' | 'admin' | 'manager' | 'moderator' | 'finance' | 'analyst';
+export type AdminRole = 'super_admin' | 'admin' | 'manager';
 
 export const ROLES: Record<string, AdminRole> = {
   SUPER_ADMIN: 'super_admin',
   ADMIN: 'admin',
   MANAGER: 'manager',
-  MODERATOR: 'moderator',
-  FINANCE: 'finance',
-  ANALYST: 'analyst',
 };
 
 // Define which roles can access which paths (roughly mapping to Sidebar items)
 export const PERMISSIONS: Record<string, AdminRole[]> = {
-  '/admin/dashboard': ['super_admin', 'admin', 'manager', 'moderator', 'finance', 'analyst'],
-  '/admin/blood-requests': ['super_admin', 'admin', 'manager', 'moderator'],
-  '/admin/fundraisers': ['super_admin', 'admin', 'manager', 'finance'],
-  '/admin/donations': ['super_admin', 'admin', 'manager', 'finance', 'moderator'], // Moderator can view? Assuming yes based on prompt
+  '/admin/dashboard': ['super_admin', 'admin', 'manager'],
+  '/admin/blood-requests': ['super_admin', 'admin', 'manager'],
+  '/admin/fundraisers': ['super_admin', 'admin', 'manager'],
+  '/admin/donations': ['super_admin', 'admin', 'manager'],
   '/admin/users': ['super_admin', 'admin', 'manager'],
   '/admin/locations': ['super_admin', 'admin', 'manager'],
   '/admin/moderators': ['super_admin', 'admin'],
   '/admin/ads': ['super_admin', 'admin', 'manager'],
   '/admin/translations': ['super_admin', 'admin', 'manager'],
-  '/admin/reports': ['super_admin', 'admin', 'manager', 'analyst', 'finance'],
+  '/admin/reports': ['super_admin', 'admin', 'manager'],
   '/admin/notifications': ['super_admin', 'admin', 'manager'],
   '/admin/email': ['super_admin'],
-  '/admin/payment-settings': ['super_admin', 'finance'],
+  '/admin/payment-settings': ['super_admin', 'admin'],
   '/admin/settings': ['super_admin', 'admin'],
 };
 

@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import CountUp from "@/components/reactbits/CountUp";
+import { useTranslations } from 'next-intl';
 
 // Animation variants
 const containerVariants = {
@@ -54,6 +55,8 @@ interface ReportsClientProps {
 export default function ReportsClient({ data }: ReportsClientProps) {
   const [dateRange, setDateRange] = useState('30d');
   const { mainStats, userGrowthData, bloodTypeData, topRegions } = data;
+  const t = useTranslations('reports');
+  const tCommon = useTranslations('common');
 
   // Find max value for normalization
   const maxUserCount = Math.max(...userGrowthData.map(d => d.value));
@@ -69,10 +72,10 @@ export default function ReportsClient({ data }: ReportsClientProps) {
       <motion.div variants={itemVariants} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="font-display text-5xl font-bold tracking-tight bg-gradient-to-r from-fuchsia-500 via-pink-500 to-rose-500 bg-clip-text text-transparent">
-            Reports & Analytics
+            {t('title')}
           </h1>
           <p className="text-muted-foreground mt-2 text-lg">
-            Platform performance insights and metrics
+            {t('subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -82,15 +85,15 @@ export default function ReportsClient({ data }: ReportsClientProps) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="90d">Last 90 days</SelectItem>
-              <SelectItem value="1y">Last year</SelectItem>
+              <SelectItem value="7d">{t('last7Days')}</SelectItem>
+              <SelectItem value="30d">{t('last30Days')}</SelectItem>
+              <SelectItem value="90d">{t('last90Days')}</SelectItem>
+              <SelectItem value="1y">{t('lastYear')}</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" className="rounded-xl h-11">
             <Download className="w-4 h-4 mr-2" />
-            Export
+            {tCommon('export')}
           </Button>
         </div>
       </motion.div>
@@ -137,9 +140,9 @@ export default function ReportsClient({ data }: ReportsClientProps) {
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
                 <TrendingUp className="w-5 h-5 text-white" />
               </div>
-              <h3 className="font-semibold text-lg">User Growth</h3>
+              <h3 className="font-semibold text-lg">{t('userGrowth')}</h3>
             </div>
-            <span className="text-sm text-muted-foreground">Last 6 months</span>
+            <span className="text-sm text-muted-foreground">{t('last6Months')}</span>
           </div>
           
           <div className="h-48 flex items-end justify-between gap-3">
@@ -159,14 +162,8 @@ export default function ReportsClient({ data }: ReportsClientProps) {
           <div className="flex items-center justify-between mt-6 pt-4 border-t border-border/50">
             <div>
               <p className="text-2xl font-bold">{userGrowthData[userGrowthData.length - 1]?.value || 0}</p>
-              <p className="text-sm text-muted-foreground">Total Users</p>
+              <p className="text-sm text-muted-foreground">{t('totalUsers')}</p>
             </div>
-            {/* 
-            <div className="text-right">
-              <p className="text-emerald-500 font-medium">+18.7%</p>
-              <p className="text-sm text-muted-foreground">vs last month</p>
-            </div> 
-            */}
           </div>
         </motion.div>
 
@@ -180,7 +177,7 @@ export default function ReportsClient({ data }: ReportsClientProps) {
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center">
                 <Droplet className="w-5 h-5 text-white" />
               </div>
-              <h3 className="font-semibold text-lg">Blood Type Distribution</h3>
+              <h3 className="font-semibold text-lg">{t('bloodTypeDistribution')}</h3>
             </div>
           </div>
           
@@ -203,7 +200,7 @@ export default function ReportsClient({ data }: ReportsClientProps) {
             ))}
             {bloodTypeData.length === 0 && (
                 <div className="col-span-4 text-center py-10 text-muted-foreground">
-                    No data available
+                    {tCommon('noData')}
                 </div>
             )}
           </div>
@@ -211,11 +208,11 @@ export default function ReportsClient({ data }: ReportsClientProps) {
           <div className="flex items-center justify-between mt-6 pt-4 border-t border-border/50">
             <div>
               <p className="text-2xl font-bold">{bloodTypeData.reduce((acc, curr) => acc + curr.count, 0)}</p>
-              <p className="text-sm text-muted-foreground">Total donors (with type)</p>
+              <p className="text-sm text-muted-foreground">{t('totalDonors')}</p>
             </div>
             <div className="text-right">
-              <p className="text-emerald-500 font-medium">{bloodTypeData[0]?.type || 'N/A'} most common</p>
-              <p className="text-sm text-muted-foreground">{bloodTypeData[0]?.percentage || 0}% of donors</p>
+              <p className="text-emerald-500 font-medium">{bloodTypeData[0]?.type || 'N/A'} {t('mostCommon')}</p>
+              <p className="text-sm text-muted-foreground">{bloodTypeData[0]?.percentage || 0}% {t('ofDonors')}</p>
             </div>
           </div>
         </motion.div>
@@ -231,10 +228,10 @@ export default function ReportsClient({ data }: ReportsClientProps) {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
               <MapPin className="w-5 h-5 text-white" />
             </div>
-            <h3 className="font-semibold text-lg">Top Active Regions</h3>
+            <h3 className="font-semibold text-lg">{t('topActiveRegions')}</h3>
           </div>
           <Button variant="outline" size="sm" className="rounded-lg">
-            View All
+            {tCommon('viewAll')}
           </Button>
         </div>
         
@@ -256,19 +253,13 @@ export default function ReportsClient({ data }: ReportsClientProps) {
               <div className="flex items-center gap-6 text-sm">
                 <div className="text-right">
                   <p className="font-medium">{region.requests}</p>
-                  <p className="text-muted-foreground">requests</p>
+                  <p className="text-muted-foreground">{t('requests')}</p>
                 </div>
-                {/* 
-                <div className="text-right">
-                  <p className="font-medium">{region.donors}</p>
-                  <p className="text-muted-foreground">donors</p>
-                </div> 
-                */}
               </div>
             </motion.div>
           ))}
           {topRegions.length === 0 && (
-            <div className="text-center py-6 text-muted-foreground">No regional data yet</div>
+            <div className="text-center py-6 text-muted-foreground">{t('noRegionalData')}</div>
           )}
         </div>
       </motion.div>

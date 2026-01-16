@@ -1,9 +1,25 @@
 'use server';
 
-import { getCollection, Collections, UserDocument } from "@/lib/db/mongodb";
+import { getCollection, Collections } from "@/lib/db/mongodb";
 import { getFirebaseAuth } from "@/lib/auth/firebase-admin";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+
+// Global Settings Types
+interface AppSetting {
+  key: string;
+  value: any;
+  updated_at: Date;
+  updated_by?: string;
+}
+
+// User Preferences Type
+interface UserPreferences {
+  _id: string; // User ID
+  appearance?: any;
+  notifications?: any;
+  updated_at: Date;
+}
 
 // Helper for auth
 async function getAuthenticatedUser() {
@@ -19,62 +35,108 @@ async function getAuthenticatedUser() {
 
 export async function getSettings() {
   const user = await getAuthenticatedUser();
-  if (!user) {
-    console.log('getSettings: No authenticated user');
-    return null;
-  }
+  if (!user) return null; // Or return just public global settings if any? Admin panel requires auth.
 
-  console.log('getSettings: Fetching settings for user:', user.uid);
-  
-  const collection = await getCollection<UserDocument>(Collections.USERS);
-  const userDoc = await collection.findOne({ _id: user.uid } as any);
+  // 1. Fetch Global Settings
+  const appSettingsCollection = await getCollection<AppSetting>('app_settings');
+  const globalSettings = await appSettingsCollection.find({
+    key: { $in: ['global_general', 'global_api_keys', 'global_security'] }
+  }).toArray();
 
-  if (!userDoc) {
-    console.log('getSettings: No user document found');
-    return null;
-  }
-  
-  console.log('getSettings: Found settings:', userDoc.admin_details?.settings);
-  
-  // Settings are stored in admin_details.settings
-  return userDoc.admin_details?.settings || null;
+  const global: Record<string, any> = {};
+  globalSettings.forEach(doc => {
+    if (doc.key === 'global_general') global.general = doc.value;
+    if (doc.key === 'global_api_keys') global.apiKeys = doc.value;
+    if (doc.key === 'global_security') global.security = doc.value;
+  });
+
+  // 2. Fetch User Preferences
+  const prefsCollection = await getCollection<UserPreferences>('user_preferences');
+  const userPrefs = await prefsCollection.findOne({ _id: user.uid });
+
+  // 3. Combine
+  return {
+    general: global.general || {
+      platformName: "BloodReq",
+      supportEmail: "support@bloodreq.com",
+      language: "en",
+      timezone: "asia_dhaka"
+    },
+    apiKeys: global.apiKeys || {
+        mongodbUri: "",
+        firebaseProjectId: "",
+        admobAppId: "",
+        facebookAppId: ""
+    },
+    security: global.security || {
+        twoFactor: false,
+        ipRestriction: false,
+        sessionTimeout: "30"
+    },
+    appearance: userPrefs?.appearance || {
+        theme: "light",
+        primaryColor: "#dc2626",
+        enableAnimations: true
+    },
+    notifications: userPrefs?.notifications || {
+        push: true,
+        sms: true,
+        email: true,
+        radius: "10"
+    }
+  };
 }
 
 export async function updateSettings(settings: any) {
   const user = await getAuthenticatedUser();
   if (!user) throw new Error("Unauthorized");
 
-  console.log('updateSettings: Saving settings for user:', user.uid);
-  console.log('updateSettings: Settings data:', JSON.stringify(settings, null, 2));
+  const { general, apiKeys, security, appearance, notifications } = settings;
 
-  const collection = await getCollection<UserDocument>(Collections.USERS);
+  // 1. Update Global Settings (app_settings)
+  const appSettingsCollection = await getCollection<AppSetting>('app_settings');
+  const now = new Date();
   
-  const result = await collection.updateOne(
-    { _id: user.uid } as any,
+  // Parallel updates for global settings
+  const globalUpdates = [
+    appSettingsCollection.updateOne(
+      { key: 'global_general' },
+      { $set: { key: 'global_general', value: general, updated_at: now, updated_by: user.uid } },
+      { upsert: true }
+    ),
+    appSettingsCollection.updateOne(
+      { key: 'global_api_keys' },
+      { $set: { key: 'global_api_keys', value: apiKeys, updated_at: now, updated_by: user.uid } },
+      { upsert: true }
+    ),
+    appSettingsCollection.updateOne(
+      { key: 'global_security' },
+      { $set: { key: 'global_security', value: security, updated_at: now, updated_by: user.uid } },
+      { upsert: true }
+    )
+  ];
+
+  // 2. Update User Preferences (user_preferences)
+  const prefsCollection = await getCollection<UserPreferences>('user_preferences');
+  const userUpdate = prefsCollection.updateOne(
+    { _id: user.uid },
     { 
       $set: { 
-        'admin_details.settings': settings,
-        updated_at: new Date()
+        appearance,
+        notifications,
+        updated_at: now 
       }
     },
-    { upsert: false }
+    { upsert: true }
   );
 
-  console.log('updateSettings: MongoDB result:', result);
+  await Promise.all([...globalUpdates, userUpdate]);
 
-  if (result.matchedCount === 0) {
-    console.log('updateSettings: No matching user document found, trying to create admin_details');
-    // User document exists but admin_details might not exist, try with upsert
-    await collection.updateOne(
-      { _id: user.uid } as any,
-      { 
-        $set: { 
-          admin_details: { settings },
-          updated_at: new Date()
-        }
-      }
-    );
-  }
+  /* 
+     Optional: Clear old embedded settings from admin_users to reduce document size?
+     Maybe inconsistent if we still want fallback. 
+     For now, we just stop writing there. The existing data stays until manually cleaned or we add a clean-up step.
+  */
 
   revalidatePath('/admin/settings');
   return { success: true };

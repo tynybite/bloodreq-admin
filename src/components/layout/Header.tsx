@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Moon, Sun, Search, Menu } from "lucide-react";
+import { Bell, Moon, Sun, Search, Menu, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,12 +13,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useUser } from "@/contexts/UserContext";
 import { auth } from "@/lib/auth/firebase-client";
 import { useTheme } from "next-themes";
+import { useTranslations } from "next-intl";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -28,6 +29,10 @@ export function Header({ onMenuClick }: HeaderProps) {
   const { theme, setTheme } = useTheme();
   const { user } = useUser();
   const router = useRouter();
+  const t = useTranslations('header');
+  const tNav = useTranslations('nav');
+  const tLang = useTranslations('languages');
+  const { locale, setLocale, locales, localeNames, localeFlags } = useLanguage();
 
   const handleLogout = async () => {
     try {
@@ -62,7 +67,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         <div className="relative hidden md:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search users, requests..."
+            placeholder={t('search')}
             className="w-80 bg-secondary/50 pl-10 focus:bg-secondary"
           />
         </div>
@@ -70,6 +75,33 @@ export function Header({ onMenuClick }: HeaderProps) {
 
       {/* Right Section */}
       <div className="flex items-center gap-2">
+        {/* Language Switcher */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Globe className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+            <DropdownMenuLabel>{t('language')}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {locales.map((loc) => (
+              <DropdownMenuItem 
+                key={loc}
+                onClick={() => setLocale(loc)}
+                className={locale === loc ? 'bg-primary/10 text-primary' : ''}
+              >
+                <span className="mr-2 text-base">{localeFlags[loc]}</span>
+                {localeNames[loc]}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {/* Theme Toggle */}
         <Button
           variant="ghost"
@@ -99,7 +131,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80">
             <DropdownMenuLabel className="font-display">
-              Notifications
+              {t('notifications')}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="flex flex-col items-start gap-1 py-3">
@@ -122,7 +154,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="justify-center text-primary">
-              View all notifications
+              {t('viewAll')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -148,20 +180,20 @@ export function Header({ onMenuClick }: HeaderProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel className="font-display">
-              My Account
+              {t('myAccount')}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <a href="/admin/settings" className="w-full cursor-pointer">Profile Settings</a>
+              <a href="/admin/settings" className="w-full cursor-pointer">{t('profileSettings')}</a>
             </DropdownMenuItem>
-            <DropdownMenuItem>Security</DropdownMenuItem>
-            <DropdownMenuItem>Activity Log</DropdownMenuItem>
+            <DropdownMenuItem>{t('security')}</DropdownMenuItem>
+            <DropdownMenuItem>{t('activityLog')}</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem 
                className="text-destructive focus:text-destructive cursor-pointer"
                onClick={handleLogout}
             >
-              Log out
+              {tNav('logout')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

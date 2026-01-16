@@ -75,6 +75,7 @@ export interface UserDocument extends Document {
   updated_at: Date;
   // Admin-specific fields
   admin_details?: {
+    role?: string; // e.g. 'super_admin', 'manager' ('moderator', 'finance', 'analyst' removed)
     permissions?: any;
     assigned_countries?: string[];
     assigned_cities?: string[];
