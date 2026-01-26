@@ -8,27 +8,36 @@
    ======================================== */
 
 @font-face {
-  font-family: "Outfit";
-  src: url("https://fonts.gstatic.com/s/outfit/v11/QGYvz_MVcBeNP4NJuktqUYLknw.woff2")
+  font-family: "Instrument Serif";
+  src: url("https://fonts.gstatic.com/s/instrumentserif/v1/n0bA2S9Y-m26N_eD_5L7Z37z9_Y.woff2")
     format("woff2");
-  font-weight: 400 700;
+  font-weight: 400;
+  font-style: italic;
   font-display: swap;
 }
 
 @font-face {
-  font-family: "DM Sans";
-  src: url("https://fonts.gstatic.com/s/dmsans/v15/rP2Hp2ywxg089UriCZOIHQ.woff2")
+  font-family: "Geist";
+  src: url("https://cdn.jsdelivr.net/font-geist/1.3.0/fonts/geist-sans/Geist-Medium.woff2")
     format("woff2");
-  font-weight: 400 500 600 700;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("https://fonts.gstatic.com/s/jetbrainsmono/v18/t6qVr_z_2pT7Wf3xS--f0m8qO8-m.woff2")
+    format("woff2");
+  font-weight: 400 700;
   font-display: swap;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "DM Sans", system-ui, sans-serif;
-  --font-display: "Outfit", system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "Geist", system-ui, sans-serif;
+  --font-display: "Instrument Serif", serif;
+  --font-mono: "JetBrains Mono", monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -78,10 +87,10 @@
   /* LIGHT THEME (Default) */
   --background: #fafafa;
   --foreground: #0a0a0f;
-  
+
   --card: #ffffff;
   --card-foreground: #0a0a0f;
-  
+
   --popover: #ffffff;
   --popover-foreground: #0a0a0f;
 
@@ -138,10 +147,10 @@
 .dark {
   --background: #0a0a0f;
   --foreground: #fafafa;
-  
+
   --card: #12121a;
   --card-foreground: #fafafa;
-  
+
   --popover: #12121a;
   --popover-foreground: #fafafa;
 
@@ -247,7 +256,9 @@
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .dark .glass-card {
@@ -299,4 +310,44 @@
 
 .btn-primary {
   @apply bg-primary text-white shadow-lg shadow-primary/25 hover:bg-red-600 hover:shadow-primary/40 transition-all active:scale-95 font-semibold tracking-wide uppercase;
+}
+
+/* Hybrid Redesign Utilities */
+
+.auth-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+}
+
+.glass-hybrid {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.mono-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--primary);
+}
+
+@keyframes drift {
+  0% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 40px) scale(0.9); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+.animate-drift {
+  animation: drift 20s ease-in-out infinite;
+}
+
+.text-reveal {
+  background: linear-gradient(135deg, #ffffff 0%, #dc2626 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  display: inline-block;
 }

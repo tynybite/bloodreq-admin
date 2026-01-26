@@ -9,25 +9,24 @@ export default function AuthLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // Grid Layout: 2 Columns on Large Screens
-    <div className="min-h-screen w-full lg:grid lg:grid-cols-2 bg-cream text-zinc-900 light">
-      {/* Left Column: Visual Sidebar */}
+    // Hybrid Layout: Noir Background
+    <div className="min-h-screen w-full lg:grid lg:grid-cols-2 bg-[#020205] text-zinc-100 selection:bg-red-600/30">
+      {/* Left Column: Hybrid Sidebar */}
       <AuthSidebar />
 
       {/* Right Column: Interaction Form Area */}
-      <div className="flex flex-col items-center justify-center p-8 overflow-y-auto w-full lg:h-full min-h-screen lg:min-h-0">
-         {/* Mobile Header (Only visible on small screens to prevent overlap) */}
-         <div className="flex w-full items-center gap-2 mb-12 lg:hidden">
-             <div className="h-6 w-6 rounded-full bg-red-600"/>
-             <span className="text-xl font-bold tracking-tight text-zinc-900">BloodReq</span>
+      <div className="flex flex-col items-center justify-center p-8 overflow-y-auto w-full lg:h-full min-h-screen lg:min-h-0 relative">
+         <div className="auth-noise absolute inset-0 opacity-10 pointer-events-none" />
+         
+         {/* Mobile Header */}
+         <div className="flex w-full items-center gap-2 mb-12 lg:hidden relative z-10">
+             <div className="h-6 w-6 rounded-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]"/>
+             <span className="text-xl font-bold tracking-tight text-white font-sans">BloodReq</span>
          </div>
          
-         <div className="w-full max-w-sm mx-auto flex-1 flex flex-col justify-center">
+         <div className="w-full max-w-sm mx-auto flex-1 flex flex-col justify-center relative z-10">
             {children}
          </div>
-         
-         {/* Spacer for bottom balance if needed */}
-         <div className="h-8 lg:hidden" />
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ import { cookies } from 'next/headers';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { idToken } = body;
+    const { idToken, rememberMe } = body;
 
     if (!idToken) {
       return errorResponse('Missing ID token', 'VALIDATION_ERROR', 400);
@@ -16,15 +16,18 @@ export async function POST(request: NextRequest) {
 
     // Verify the ID token first
     const decodedToken = await getFirebaseAuth().verifyIdToken(idToken);
-    console.log("Login attempt - UID:", decodedToken.uid); // Debug logging
+    console.log("Login attempt - UID:", decodedToken.uid);
     
-    // Create session cookie (expires in 5 days)
-    const expiresIn = 60 * 60 * 24 * 5 * 1000;
+    // Create session cookie: 14 days if remembered, 24 hours if not
+    const expiresIn = rememberMe 
+      ? 60 * 60 * 24 * 14 * 1000 
+      : 60 * 60 * 24 * 1 * 1000;
+    
     const sessionCookie = await getFirebaseAuth().createSessionCookie(idToken, { expiresIn });
 
     const cookieStore = await cookies();
     cookieStore.set('session', sessionCookie, {
-      maxAge: expiresIn / 1000,
+      maxAge: rememberMe ? expiresIn / 1000 : undefined, // Session cookie (lasts until browser close) id undefined
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       path: '/',
