@@ -54,6 +54,8 @@ export const Collections = {
   DONATIONS: 'donations',
   FUNDRAISERS: 'fundraisers',
   NOTIFICATIONS: 'notifications',
+  ADMIN_USERS: 'admin_users',
+  SYSTEM_SETTINGS: 'system_settings',
 } as const;
 
 // Common Interfaces

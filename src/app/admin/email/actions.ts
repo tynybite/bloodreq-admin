@@ -28,16 +28,30 @@ async function getCurrentUser() {
 }
 
 /**
- * Get SMTP settings from admin_users collection
+ * Get SMTP settings from system_settings collection
  */
 export async function getSMTPSettings(): Promise<SMTPSettings | null> {
+  // Parsing token to check if user is authenticated (security)
   const user = await getCurrentUser();
   if (!user) return null;
 
   try {
-    const adminUsersCollection = await getCollection<AdminUserDocument>('admin_users');
-    const adminData = await adminUsersCollection.findOne({ _id: user.uid } as any);
-    return adminData?.settings?.smtp || null;
+    const settingsCollection = await getCollection<any>(Collections.SYSTEM_SETTINGS);
+    const smtpConfig = await settingsCollection.findOne({ _id: 'smtp_config' });
+    
+    if (smtpConfig) {
+      // Map DB fields to SMTPSettings interface if needed
+      return {
+        host: smtpConfig.host,
+        port: smtpConfig.port,
+        secure: smtpConfig.secure,
+        auth_user: smtpConfig.user, // Mapped from 'user' in DB to 'auth_user' in interface
+        auth_pass: smtpConfig.pass, // Mapped from 'pass' in DB to 'auth_pass' in interface
+        from_email: smtpConfig.fromEmail, // Mapped from 'fromEmail'
+        from_name: smtpConfig.fromName,   // Mapped from 'fromName'
+      };
+    }
+    return null;
   } catch (error) {
     console.error('Error fetching SMTP settings:', error);
     return null;
@@ -45,7 +59,7 @@ export async function getSMTPSettings(): Promise<SMTPSettings | null> {
 }
 
 /**
- * Save SMTP settings
+ * Save SMTP settings to system_settings collection
  */
 export async function saveSMTPSettings(smtp: SMTPSettings) {
   const user = await getCurrentUser();
@@ -54,15 +68,21 @@ export async function saveSMTPSettings(smtp: SMTPSettings) {
   }
 
   try {
-    const adminUsersCollection = await getCollection<AdminUserDocument>('admin_users');
+    const settingsCollection = await getCollection<any>(Collections.SYSTEM_SETTINGS);
     
-    // Update with new SMTP settings
-    await adminUsersCollection.updateOne(
-      { _id: user.uid } as any,
+    await settingsCollection.updateOne(
+      { _id: 'smtp_config' },
       { 
         $set: { 
-          'settings.smtp': smtp,
-          updated_at: new Date()
+          host: smtp.host,
+          port: smtp.port,
+          secure: smtp.secure,
+          user: smtp.auth_user,
+          pass: smtp.auth_pass,
+          fromEmail: smtp.from_email,
+          fromName: smtp.from_name,
+          updated_at: new Date(),
+          updated_by: user.uid
         } 
       },
       { upsert: true }

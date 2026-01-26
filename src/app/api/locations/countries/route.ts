@@ -3,8 +3,8 @@ import { successResponse, getAuthUser } from '@/lib/api-utils';
 
 // GET /api/locations/countries
 export async function GET(request: NextRequest) {
-  const { user, error: authError } = await getAuthUser(request);
-  if (authError) return authError;
+  // Public endpoint - no auth required
+
 
   const countries = [
     { code: 'BD', name: 'Bangladesh' },

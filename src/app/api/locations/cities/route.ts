@@ -3,9 +3,8 @@ import { successResponse, errorResponse, getAuthUser } from '@/lib/api-utils';
 
 // GET /api/locations/cities - Get cities for a country
 export async function GET(request: NextRequest) {
-  // Verify authentication
-  const { user, error: authError } = await getAuthUser(request);
-  if (authError) return authError;
+  // Public endpoint - no auth required
+
 
   try {
     const { searchParams } = new URL(request.url);
