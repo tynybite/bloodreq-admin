@@ -1,6 +1,6 @@
 'use server';
 
-import { getCollection, Collections, NotificationLogDocument, UserDocument } from '@/lib/db/mongodb';
+import { getCollection, Collections, NotificationLogDocument, UserDocument, AdminUserDocument } from '@/lib/db/mongodb';
 import { getFirebaseAuth } from '@/lib/auth/firebase-admin';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
@@ -15,6 +15,9 @@ export interface NotificationFormData {
   message: string;
   segment: 'all' | 'blood_group';
   blood_group?: string;
+  imageUrl?: string;
+  url?: string;
+  data?: string; // JSON string from form
 }
 
 // Helper to get current user
@@ -23,7 +26,7 @@ async function getCurrentUser() {
   const token = cookieStore.get('session')?.value;
   if (!token) return null;
   try {
-    return await getFirebaseAuth().verifyIdToken(token);
+    return await getFirebaseAuth().verifySessionCookie(token, true);
   } catch {
     return null;
   }
@@ -38,18 +41,48 @@ export async function sendAdminNotification(data: NotificationFormData) {
     throw new Error('Unauthorized');
   }
 
+  // Security Audit: Check Role (fetch from DB to be sure, or rely on claim if custom claims used)
+  // Ideally, we fetch the role here. For now, let's assume getAuthUser needs to return role or we fetch it.
+  // Since getAuthUser (lines 20-30) returns a DecodedIdToken, let's verify if it has custom claims.
+  // Firebase Admin SDK verifySessionCookie returns DecodedIdToken.
+  
+  // NOTE: Ideally we check the DB here for the role.
+  // But given I don't want to over-complicate the action with DB fetches right now, 
+  // and the Layout protects the UI, this is a secondary layer.
+  // Actually, let's do it properly.
+  
+  const adminUsersCollection = await getCollection<AdminUserDocument>('users');
+  const adminProfile = await adminUsersCollection.findOne({ _id: user.uid });
+  const role = adminProfile?.admin_details?.role || adminProfile?.role || 'user';
+  
+  if (!['admin', 'super_admin', 'moderator'].includes(role)) {
+    throw new Error('Forbidden: Insufficient permissions');
+  }
+
   let result;
+  let customData = {};
+  
+  try {
+    if (data.data) {
+      customData = JSON.parse(data.data);
+    }
+  } catch (e) {
+    console.error('Invalid JSON data', e);
+    // Continue without data if parse fails
+  }
+
+  const payload = {
+    title: data.title,
+    message: data.message,
+    imageUrl: data.imageUrl,
+    url: data.url,
+    data: customData,
+  };
   
   if (data.segment === 'blood_group' && data.blood_group) {
-    result = await sendToBloodGroup(data.blood_group, {
-      title: data.title,
-      message: data.message,
-    });
+    result = await sendToBloodGroup(data.blood_group, payload);
   } else {
-    result = await sendBroadcast({
-      title: data.title,
-      message: data.message,
-    });
+    result = await sendBroadcast(payload);
   }
 
   // Log the notification
@@ -66,6 +99,9 @@ export async function sendAdminNotification(data: NotificationFormData) {
       success: result.success,
       error: result.errors ? result.errors.join(', ') : null,
       created_at: new Date(),
+      image_url: data.imageUrl,
+      url: data.url,
+      data: customData,
     });
 
     revalidatePath('/admin/notifications');

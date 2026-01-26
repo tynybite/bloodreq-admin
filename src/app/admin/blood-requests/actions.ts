@@ -13,7 +13,7 @@ async function getAuthenticatedUser() {
   const token = cookieStore.get('session')?.value;
   if (!token) return null;
   try {
-    return await getFirebaseAuth().verifySessionCookie(token);
+    return await getFirebaseAuth().verifySessionCookie(token, true);
   } catch (e) {
     return null;
   }

@@ -147,7 +147,7 @@ async function getCurrentUser() {
   const token = cookieStore.get('session')?.value;
   if (!token) return null;
   try {
-    return await getFirebaseAuth().verifyIdToken(token);
+    return await getFirebaseAuth().verifySessionCookie(token, true);
   } catch {
     return null;
   }

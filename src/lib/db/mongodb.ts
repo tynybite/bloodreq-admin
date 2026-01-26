@@ -157,6 +157,9 @@ export interface NotificationLogDocument extends Document {
   success: boolean;
   error?: string | null;
   created_at: Date;
+  image_url?: string;
+  url?: string;
+  data?: any;
 }
 
 export interface AdminUserDocument extends Document {

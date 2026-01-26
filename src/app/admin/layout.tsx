@@ -57,5 +57,14 @@ export default async function AdminLayout({
     redirect('/login');
   }
 
+  // Security Audit Fix: Enforce RBAC
+  const allowedRoles = ['admin', 'super_admin', 'moderator'];
+  if (!user.role || !allowedRoles.includes(user.role)) {
+    console.warn(`Unauthorized access attempt by user ${user.id} with role ${user.role}`);
+    // Redirect to home or a dedicated forbidden page. 
+    // Since this is the admin panel, sending them back to login or root is safer.
+    redirect('/'); 
+  }
+
   return <AdminLayoutClient user={user}>{children}</AdminLayoutClient>;
 }

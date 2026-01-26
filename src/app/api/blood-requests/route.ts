@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const blood_group = searchParams.get('blood_group');
+    const exclude_blood_group = searchParams.get('exclude_blood_group');
     const urgency = searchParams.get('urgency');
     const city = searchParams.get('city');
     const status = searchParams.get('status') || 'pending'; // Default to active/pending requests
@@ -38,7 +39,12 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     const query: any = {};
-    if (blood_group) query.blood_group = blood_group;
+    if (blood_group) {
+      query.blood_group = blood_group;
+    } else if (exclude_blood_group) {
+      query.blood_group = { $ne: exclude_blood_group };
+    }
+    
     if (urgency) query.urgency = urgency;
     if (city) query.city = { $regex: new RegExp(city, 'i') };
     

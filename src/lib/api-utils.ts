@@ -106,6 +106,7 @@ export async function getAuthUser(request: Request): Promise<{
   const token = authHeader.replace('Bearer ', '');
 
   try {
+    // Basic verification
     const decodedToken = await getFirebaseAuth().verifyIdToken(token);
     
     return {
@@ -118,8 +119,18 @@ export async function getAuthUser(request: Request): Promise<{
       },
       error: null,
     };
-  } catch (error) {
-    console.error('Firebase token verification error:', error);
+  } catch (error: any) {
+    console.error('Firebase token verification error:', error.message || error);
+    
+    // Log token header for debugging algorithm issues (safely)
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const header = JSON.parse(Buffer.from(parts[0], 'base64').toString());
+        console.error('Token header (DEBUG):', JSON.stringify({ alg: header.alg, kid: header.kid, typ: header.typ }));
+      }
+    } catch (_) {}
+
     return { user: null, error: errorResponse('Invalid or expired token', 'AUTH_EXPIRED', 401) };
   }
 }

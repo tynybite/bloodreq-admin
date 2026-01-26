@@ -20,15 +20,19 @@ import { auth } from "@/lib/auth/firebase-client";
 import { useTheme } from "next-themes";
 import { useTranslations } from "next-intl";
 import { useLanguage } from "@/contexts/LanguageContext";
-
+import { useEffect, useState } from 'react';
 interface HeaderProps {
   onMenuClick?: () => void;
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const { user } = useUser();
-  const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);  const router = useRouter();
   const t = useTranslations('header');
   const tNav = useTranslations('nav');
   const tLang = useTranslations('languages');
@@ -109,7 +113,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           onClick={toggleTheme}
           className="text-muted-foreground hover:text-foreground"
         >
-          {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          {mounted && theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>
 
         {/* Notifications */}

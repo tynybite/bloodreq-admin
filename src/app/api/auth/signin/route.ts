@@ -57,8 +57,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Return user profile
+    // Return user profile and token for mobile
     return successResponse({
+      access_token: idToken,
+      refresh_token: 'FIREBASE_MANAGED',
       id: profile._id,
       email: profile.email,
       full_name: profile.full_name,

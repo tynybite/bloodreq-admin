@@ -17,6 +17,7 @@ interface NotificationPayload {
   message: string;
   data?: Record<string, any>;
   url?: string;
+  imageUrl?: string;
 }
 
 interface NotificationOptions {
@@ -53,6 +54,13 @@ export async function sendNotification(
     contents: { en: payload.message },
     data: payload.data || {},
   };
+
+  // Rich Media Support
+  if (payload.imageUrl) {
+    body.big_picture = payload.imageUrl; // Android
+    body.ios_attachments = { id1: payload.imageUrl }; // iOS
+    body.chrome_web_image = payload.imageUrl; // Web
+  }
 
   // Target selection
   if (options.includeExternalUserIds && options.includeExternalUserIds.length > 0) {

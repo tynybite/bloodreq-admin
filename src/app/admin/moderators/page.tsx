@@ -12,7 +12,7 @@ async function getCurrentUser() {
   if (!token) return null;
 
   try {
-    const decodedToken = await getFirebaseAuth().verifyIdToken(token);
+    const decodedToken = await getFirebaseAuth().verifySessionCookie(token, true);
     return decodedToken;
   } catch (error) {
     return null;

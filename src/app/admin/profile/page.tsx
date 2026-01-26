@@ -14,7 +14,7 @@ export default async function ProfilePage() {
 
   let user;
   try {
-    user = await getFirebaseAuth().verifySessionCookie(token);
+    user = await getFirebaseAuth().verifySessionCookie(token, true);
   } catch {
     redirect('/login');
   }

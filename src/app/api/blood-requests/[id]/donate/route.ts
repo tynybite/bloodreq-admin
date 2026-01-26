@@ -27,7 +27,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const usersCollection = await getCollection<UserDocument>(Collections.USERS);
 
     // 1. Check if request exists and is active
-    const bloodRequest = await requestsCollection.findOne({ _id: new ObjectId(id) });
+    // Check if request exists and is active
+    let bloodRequest;
+    try {
+      bloodRequest = await requestsCollection.findOne({ _id: new ObjectId(id) });
+    } catch (e) {
+      // @ts-ignore
+      bloodRequest = await requestsCollection.findOne({ _id: id });
+    }
+
+    if (!bloodRequest) {
+      // @ts-ignore
+      bloodRequest = await requestsCollection.findOne({ _id: id });
+    }
+
     if (!bloodRequest) {
       return errorResponse('Blood request not found', 'NOT_FOUND', 404);
     }
@@ -78,7 +91,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // 5. Update request status to in_progress if it was pending
     if (bloodRequest.status === 'pending') {
       await requestsCollection.updateOne(
-        { _id: new ObjectId(id) },
+        // @ts-ignore
+        { _id: bloodRequest._id },
         { $set: { status: 'in_progress', updated_at: new Date() } }
       );
     }

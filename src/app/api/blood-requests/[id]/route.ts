@@ -25,15 +25,35 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const usersCollection = await getCollection(Collections.USERS);
     const donationsCollection = await getCollection(Collections.DONATIONS);
 
-    const bloodRequest = await requestsCollection.findOne({ _id: new ObjectId(id) });
+    // Try Querying by ObjectId first, then String
+    let bloodRequest;
+    try {
+      bloodRequest = await requestsCollection.findOne({ _id: new ObjectId(id) });
+    } catch (e) {
+      // If id is not a valid ObjectId, try as string
+      // @ts-ignore - Allow querying by string ID for legacy data
+      bloodRequest = await requestsCollection.findOne({ _id: id });
+    }
+
+    if (!bloodRequest) {
+      // Final attempt: explicit string query in case catch didn't catch logical mismatch
+      // @ts-ignore - Allow querying by string ID for legacy data
+      bloodRequest = await requestsCollection.findOne({ _id: id });
+    }
 
     if (!bloodRequest) {
       return errorResponse('Blood request not found', 'NOT_FOUND', 404);
     }
 
+    // Normalize IDs for comparison
+    const requesterId = bloodRequest.requester_id.toString();
+    const currentUserId = user!.id.toString();
+
     // Only show approved/in_progress requests to non-owners
-    if (bloodRequest.requester_id !== user!.id && 
-        !['approved', 'in_progress', 'completed'].includes(bloodRequest.status)) {
+    // Owners (requesterId === currentUserId) can see everything
+    if (requesterId !== currentUserId && 
+        !['pending', 'approved', 'in_progress', 'completed'].includes(bloodRequest.status)) {
+      console.log(`Access denied: User ${currentUserId} is not owner ${requesterId} and status is ${bloodRequest.status}`);
       return errorResponse('Blood request not found', 'NOT_FOUND', 404);
     }
 

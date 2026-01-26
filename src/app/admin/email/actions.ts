@@ -21,7 +21,7 @@ async function getCurrentUser() {
   const token = cookieStore.get('session')?.value;
   if (!token) return null;
   try {
-    return await getFirebaseAuth().verifyIdToken(token);
+    return await getFirebaseAuth().verifySessionCookie(token, true);
   } catch {
     return null;
   }
@@ -76,6 +76,31 @@ export async function saveSMTPSettings(smtp: SMTPSettings) {
   }
 }
 
+import nodemailer from 'nodemailer';
+
+// Helper to create transporter
+async function createTransporter(smtp: SMTPSettings) {
+  const isSecure = smtp.port === 465 || smtp.secure === true;
+  
+  return nodemailer.createTransport({
+    host: smtp.host,
+    port: smtp.port,
+    secure: isSecure, 
+    auth: {
+      user: smtp.auth_user,
+      pass: smtp.auth_pass,
+    },
+    // Add timeouts to fail faster
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 10000,   // 10 seconds
+    socketTimeout: 10000,     // 10 seconds
+    // Allow self-signed certificates in case of dev/testing environments
+    tls: {
+      rejectUnauthorized: false
+    }
+  });
+}
+
 /**
  * Send a test email using the configured SMTP settings
  */
@@ -91,12 +116,39 @@ export async function sendTestEmail(toEmail: string) {
     throw new Error('SMTP configuration incomplete');
   }
   
-  console.log('Test email would be sent to:', toEmail, 'using SMTP:', smtp.host);
-  
-  return { 
-    success: true, 
-    message: `Test email configuration validated. Host: ${smtp.host}:${smtp.port}` 
-  };
+  try {
+    const transporter = await createTransporter(smtp);
+    
+    // Verify connection configuration
+    await transporter.verify();
+    
+    // Send test email
+    const info = await transporter.sendMail({
+      from: `"${smtp.from_name || 'BloodReq Admin'}" <${smtp.from_email}>`,
+      to: toEmail,
+      subject: "BloodReq SMTP Test",
+      text: "This is a test email from your BloodReq Admin Panel. If you received this, your SMTP settings are working correctly.",
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+          <h2 style="color: #dc2626;">BloodReq SMTP Test</h2>
+          <p>This is a test email from your BloodReq Admin Panel.</p>
+          <p style="color: green;"><strong>✅ SMTP is working correctly!</strong></p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+          <small style="color: #666;">Configuration: ${smtp.host}:${smtp.port}</small>
+        </div>
+      `,
+    });
+
+    console.log('Test email sent: %s', info.messageId);
+    
+    return { 
+      success: true, 
+      message: `Test email sent successfully to ${toEmail}` 
+    };
+  } catch (error: any) {
+    console.error('SMTP Test Error:', error);
+    throw new Error(`SMTP Error: ${error.message}`);
+  }
 }
 
 /**
@@ -106,15 +158,30 @@ export async function sendEmail(options: {
   to: string;
   subject: string;
   html: string;
+  text?: string;
 }) {
   const smtp = await getSMTPSettings();
   
   if (!smtp) {
-    // throw new Error('SMTP not configured');
     console.warn('SMTP not configured, skipping email send:', options.subject);
     return { success: false, error: 'SMTP not configured' };
   }
 
-  console.log('Email would be sent:', options);
-  return { success: true };
+  try {
+    const transporter = await createTransporter(smtp);
+
+    const info = await transporter.sendMail({
+      from: `"${smtp.from_name || 'BloodReq'}" <${smtp.from_email}>`,
+      to: options.to,
+      subject: options.subject,
+      text: options.text || options.html.replace(/<[^>]*>?/gm, ''), // Fallback text
+      html: options.html,
+    });
+
+    console.log('Email sent: %s', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error('Email Send Error:', error);
+    return { success: false, error: error.message };
+  }
 }

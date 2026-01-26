@@ -84,7 +84,7 @@ export function Sidebar() {
       initial={false}
       animate={{ width: collapsed ? 72 : 260 }}
       transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-      className="fixed left-0 top-0 z-40 h-screen tactile-panel border-r-0 overflow-hidden hidden lg:block"
+      className="fixed left-0 top-0 z-40 h-screen tactile-panel border-r border-border/40 shadow-2xl overflow-hidden hidden lg:block"
     >
       {/* Texture Overlay */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.03] medical-grid" />
