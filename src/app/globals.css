@@ -351,3 +351,56 @@
   color: transparent;
   display: inline-block;
 }
+/* Skeuomorphic tactile utilities */
+.tactile-panel {
+  background: var(--card);
+  box-shadow: 
+    8px 8px 16px rgba(0, 0, 0, 0.4),
+    -8px -8px 16px rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dark .tactile-panel {
+  background: linear-gradient(145deg, #15151e, #101018);
+  box-shadow: 
+    10px 10px 20px #050508,
+    -10px -10px 20px #1a1a24;
+}
+
+.tactile-panel-inset {
+  background: var(--background);
+  box-shadow: 
+    inset 6px 6px 12px rgba(0, 0, 0, 0.5),
+    inset -6px -6px 12px rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.tactile-button {
+  @apply transition-all duration-200;
+  box-shadow: 
+    4px 4px 8px rgba(0, 0, 0, 0.3),
+    -4px -4px 8px rgba(255, 255, 255, 0.02);
+}
+
+.tactile-button:active {
+  box-shadow: 
+    inset 2px 2px 5px rgba(0, 0, 0, 0.5),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.02);
+  transform: translateY(1px);
+}
+
+.medical-grid {
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.led-indicator {
+  @apply w-2 h-2 rounded-full;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.needle-gauge {
+  @apply relative overflow-hidden;
+  background: conic-gradient(from 180deg at 50% 100%, #ef4444 0deg, #eab308 90deg, #22c55e 180deg);
+  mask: radial-gradient(circle at 50% 100%, transparent 60%, black 61%);
+}

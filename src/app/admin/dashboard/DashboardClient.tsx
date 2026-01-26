@@ -19,6 +19,8 @@ import {
 import CountUp from "@/components/reactbits/CountUp";
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import TactileCard from '@/components/ui/TactileCard';
+import BloodVialGauge from '@/components/ui/BloodVialGauge';
 
 // Animation variants
 const containerVariants = {
@@ -122,14 +124,17 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       animate="visible"
     >
       {/* Header */}
-      <motion.div variants={itemVariants} className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="font-display text-5xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground/80 to-foreground/60 bg-clip-text text-transparent">
+      <motion.div variants={itemVariants} className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-12">
+        <div className="relative">
+          <h1 className="font-display text-6xl font-bold tracking-tighter text-foreground drop-shadow-sm">
             {t('title')}
           </h1>
-          <p className="text-muted-foreground mt-2 text-lg">
-            {t('subtitle')}
-          </p>
+          <div className="flex items-center gap-2 mt-2">
+            <div className="w-8 h-[2px] bg-rose-600" />
+            <p className="text-muted-foreground text-lg uppercase font-mono tracking-widest">
+              {t('subtitle')}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <motion.button 
@@ -180,188 +185,153 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       </motion.div>
 
       {/* Metric Cards */}
-      <motion.div variants={itemVariants} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <motion.div variants={itemVariants} className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
         {metrics.map((metric, i) => (
-          <motion.div
+          <TactileCard
             key={metric.label}
-            variants={itemVariants}
-            whileHover={{ y: -4, transition: { duration: 0.2 } }}
-            className={`relative overflow-hidden rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-6 shadow-xl ${metric.shadowColor}`}
+            indicatorColor={metric.label === t('bloodRequests') ? "text-rose-500" : "text-emerald-500"}
+            className="group"
           >
-            {/* Gradient accent */}
-            <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl ${metric.gradient} opacity-10 blur-2xl`} />
-            
             <div className="relative">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-xl bg-gradient-to-br ${metric.gradient} shadow-lg`}>
-                  <metric.icon className="w-5 h-5 text-white" />
+              <div className="flex items-center justify-between mb-6">
+                <div className="p-3 rounded-2xl tactile-panel-inset text-rose-500">
+                  <metric.icon className="w-6 h-6" />
                 </div>
-                <div className={`flex items-center gap-1 text-sm font-medium ${metric.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                  {metric.change >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                <div className={`flex items-center gap-1 text-xs font-mono font-bold px-2 py-1 rounded border border-border/50 ${metric.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {metric.change >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                   {metric.change >= 0 ? '+' : ''}{metric.change}%
                 </div>
               </div>
               
-              <p className="text-sm font-medium text-muted-foreground mb-1">{metric.label}</p>
-              <p className="text-4xl font-bold font-display tracking-tight">
+              <p className="text-[0.65rem] font-mono uppercase tracking-widest text-muted-foreground mb-1">{metric.label}</p>
+              <p className="text-5xl font-bold font-mono tracking-tighter tabular-nums drop-shadow-sm">
                 {metric.prefix}<CountUp to={metric.value} duration={2} />
               </p>
             </div>
-          </motion.div>
+          </TactileCard>
         ))}
       </motion.div>
 
       {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-8 lg:grid-cols-3">
         {/* Recent Activity */}
-        <motion.div 
-          variants={itemVariants}
-          className="lg:col-span-2 rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden"
+        <TactileCard 
+          className="lg:col-span-2"
+          intensity="medium"
         >
-          <div className="p-6 border-b border-border/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500 to-purple-500">
-                  <Activity className="w-5 h-5 text-white" />
-                </div>
-                <h2 className="font-display text-xl font-semibold">{t('recentActivity')}</h2>
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-border/50">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg tactile-panel-inset text-rose-500">
+                <Activity className="w-5 h-5" />
               </div>
-              <button 
-                onClick={() => router.push('/admin/blood-requests')}
-                className="text-sm text-primary hover:underline flex items-center gap-1"
-              >
-                {tCommon('viewAll')} <ArrowRight className="w-4 h-4" />
-              </button>
+              <h2 className="font-mono text-lg font-bold uppercase tracking-tight">{t('recentActivity')}</h2>
             </div>
+            <button 
+              onClick={() => router.push('/admin/blood-requests')}
+              className="text-xs font-mono uppercase tracking-widest text-primary hover:underline flex items-center gap-1"
+            >
+              {tCommon('viewAll')} <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
-          <div className="divide-y divide-border/50">
+          <div className="space-y-4">
             {data.recentActivity.map((activity, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="flex items-center justify-between p-4 hover:bg-secondary/30 transition-colors"
+                transition={{ delay: i * 0.05 }}
+                className="flex items-center justify-between p-4 rounded-xl tactile-panel-inset bg-background/20"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-secondary/80 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full tactile-panel flex items-center justify-center">
                     {getStatusIcon(activity.status)}
                   </div>
                   <div>
-                    <p className="font-medium text-foreground">{activity.title}</p>
-                    <p className="text-sm text-muted-foreground">{activity.time}</p>
+                    <p className="font-medium text-foreground text-sm">{activity.title}</p>
+                    <p className="text-[0.65rem] font-mono uppercase text-muted-foreground">{activity.time}</p>
                   </div>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize
-                  ${activity.status === 'pending' ? 'bg-amber-500/10 text-amber-500' : ''}
-                  ${activity.status === 'verified' ? 'bg-emerald-500/10 text-emerald-500' : ''}
-                  ${activity.status === 'completed' ? 'bg-blue-500/10 text-blue-500' : ''}
-                  ${activity.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500' : ''}
-                  ${activity.status === 'new' ? 'bg-violet-500/10 text-violet-500' : ''}
+                <span className={`px-2 py-0.5 rounded border text-[0.65rem] font-mono font-bold uppercase tracking-tighter
+                  ${activity.status === 'pending' ? 'border-amber-500/50 text-amber-500' : ''}
+                  ${activity.status === 'verified' ? 'border-emerald-500/50 text-emerald-500' : ''}
+                  ${activity.status === 'completed' ? 'border-blue-500/50 text-blue-500' : ''}
+                  ${activity.status === 'approved' ? 'border-emerald-500/50 text-emerald-500' : ''}
+                  ${activity.status === 'new' ? 'border-violet-500/50 text-violet-500' : ''}
                 `}>
                   {activity.status}
                 </span>
               </motion.div>
             ))}
           </div>
-        </motion.div>
+        </TactileCard>
 
         {/* Pending Actions */}
-        <motion.div 
-          variants={itemVariants}
-          className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden"
-        >
-          <div className="p-6 border-b border-border/50">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500">
-                <AlertCircle className="w-5 h-5 text-white" />
-              </div>
-              <h2 className="font-display text-xl font-semibold">{t('pendingActions')}</h2>
+        <TactileCard className="flex flex-col">
+          <div className="flex items-center gap-3 mb-8 pb-4 border-b border-border/50">
+            <div className="p-2 rounded-lg tactile-panel-inset text-amber-500">
+              <AlertCircle className="w-5 h-5" />
             </div>
+            <h2 className="font-mono text-lg font-bold uppercase tracking-tight">{t('pendingActions')}</h2>
           </div>
-          <div className="p-4 space-y-3">
+          <div className="space-y-4 mb-8">
             {pendingActions.map((action, i) => (
               <motion.div
                 key={action.label}
-                whileHover={{ x: 4 }}
+                whileHover={{ scale: 1.02 }}
                 onClick={action.onClick}
-                className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer group"
+                className="flex items-center justify-between p-4 rounded-xl tactile-button bg-secondary/20 cursor-pointer group"
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${action.bg}`} />
-                  <span className="font-medium">{action.label}</span>
+                  <div className={`w-3 h-3 rounded-full led-indicator ${action.bg.replace('bg-', 'text-')}`} />
+                  <span className="font-mono text-xs font-bold uppercase tracking-tight">{action.label}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`px-3 py-1 rounded-full text-sm font-bold ${action.bg} text-white`}>
+                  <span className={`px-2 py-1 rounded border border-border/50 font-mono text-sm font-black ${action.bg.replace('bg-', 'text-')}`}>
                     {action.count}
                   </span>
-                  <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </motion.div>
             ))}
           </div>
           
           {/* Quick Stats */}
-          <div className="p-4 pt-2">
-            <div className="rounded-xl bg-gradient-to-br from-rose-500/10 via-pink-500/10 to-orange-500/10 border border-rose-500/20 p-4">
-              <p className="text-sm font-medium text-muted-foreground mb-2">{t('pendingRequests')}</p>
-              <p className="text-lg font-bold">{t('viewCritical')}</p>
-              <p className="text-sm text-muted-foreground mt-1">{t('subtitle')}</p>
+          <div className="mt-auto">
+            <div className="rounded-2xl tactile-panel-inset p-4 border border-rose-500/10">
+              <p className="text-[0.65rem] font-mono uppercase tracking-widest text-muted-foreground mb-1">{t('pendingRequests')}</p>
+              <p className="text-xl font-bold font-display uppercase tracking-tighter text-rose-500">{t('viewCritical')}</p>
               <button 
                 onClick={() => router.push('/admin/blood-requests?urgency=critical')}
-                className="mt-3 w-full py-2 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-600 transition-colors"
+                className="mt-6 w-full py-3 rounded-xl tactile-button bg-rose-600 text-white text-xs font-mono font-bold uppercase tracking-widest hover:bg-rose-700 transition-colors"
               >
                 {t('viewCritical')}
               </button>
             </div>
           </div>
-        </motion.div>
+        </TactileCard>
       </div>
 
       {/* Blood Type Distribution */}
-      <motion.div 
-        variants={itemVariants}
-        className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-6"
-      >
-        <div className="flex items-center justify-between mb-6">
+      <TactileCard>
+        <div className="flex items-center justify-between mb-10 pb-4 border-b border-border/50">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-rose-500 to-red-600">
-              <Droplet className="w-5 h-5 text-white" />
+            <div className="p-2 rounded-lg tactile-panel-inset text-rose-500">
+              <Droplet className="w-5 h-5" />
             </div>
-            <h2 className="font-display text-xl font-semibold">{t('bloodTypeDistribution')}</h2>
+            <h2 className="font-mono text-lg font-bold uppercase tracking-tight">{t('bloodTypeDistribution')}</h2>
           </div>
         </div>
         
-        <div className="grid grid-cols-4 md:grid-cols-8 gap-4">
+        <div className="flex flex-wrap justify-center gap-10 md:justify-between px-4">
           {data.bloodTypeDistribution.map((blood, i) => (
-            <motion.div
+            <BloodVialGauge
               key={blood.type}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.05 }}
-              whileHover={{ scale: 1.05 }}
-              className="relative group"
-            >
-              <div className="aspect-square rounded-2xl bg-gradient-to-br from-rose-500/10 to-red-500/10 border border-rose-500/20 flex flex-col items-center justify-center p-4 hover:border-rose-500/50 transition-colors">
-                <span className="text-2xl font-bold bg-gradient-to-r from-rose-500 to-red-500 bg-clip-text text-transparent">
-                  {blood.type}
-                </span>
-                <span className="text-xs text-muted-foreground mt-1">{blood.count}</span>
-              </div>
-              {/* Percentage bar */}
-              <div className="mt-2 h-1 rounded-full bg-secondary overflow-hidden">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${blood.percentage}%` }}
-                  transition={{ delay: 0.5 + i * 0.1, duration: 0.5 }}
-                  className="h-full bg-gradient-to-r from-rose-500 to-red-500"
-                />
-              </div>
-              <p className="text-xs text-center text-muted-foreground mt-1">{blood.percentage}%</p>
-            </motion.div>
+              type={blood.type}
+              value={blood.percentage}
+              label={blood.count.toString()}
+            />
           ))}
         </div>
-      </motion.div>
+      </TactileCard>
     </motion.div>
   );
 }
