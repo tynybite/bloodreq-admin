@@ -190,6 +190,18 @@ export interface NotificationLogDocument extends Document {
   data?: any;
 }
 
+export interface NotificationDocument extends Document {
+  _id?: ObjectId;
+  user_id: string; // Firebase UID
+  type: "request_nearby" | "donation_update" | "fundraiser_update" | "system";
+  title: string;
+  message: string;
+  payload?: any;
+  is_actionable: boolean;
+  is_read: boolean;
+  created_at: Date;
+}
+
 export interface AdminUserDocument extends Document {
   _id: string; // Firebase UID
   role: string;

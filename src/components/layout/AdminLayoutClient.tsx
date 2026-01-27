@@ -35,7 +35,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
       <BloodCellsBackground className="fixed inset-0 z-0 opacity-20 dark:opacity-35" />
       
       {/* Desktop Sidebar */}
-      <Sidebar />
+      <Sidebar className="hidden lg:flex" />
       
       {/* Mobile Sidebar */}
       <MobileSidebar 

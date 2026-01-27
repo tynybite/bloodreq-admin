@@ -92,6 +92,7 @@ const updateProfileSchema = z.object({
   area: z.string().optional(),
   emergency_contact: z.string().optional(),
   is_available_to_donate: z.boolean().optional(),
+  avatar_url: z.string().optional(), // Accepts URL or Base64 data URI
 });
 
 export async function PATCH(request: NextRequest) {
@@ -117,20 +118,27 @@ export async function PATCH(request: NextRequest) {
     if (data.area !== undefined) updateData.area = data.area;
     if (data.emergency_contact !== undefined) updateData.emergency_contact = data.emergency_contact;
     if (data.is_available_to_donate !== undefined) updateData.is_available_to_donate = data.is_available_to_donate;
+    if (data.avatar_url !== undefined) updateData.avatar_url = data.avatar_url;
 
     console.log('Updating profile for user:', user!.id, 'with data:', updateData);
 
     // Upsert profile (create if doesn't exist, update if exists)
+    // Build $setOnInsert - only include is_available_to_donate if it's not being set
+    const setOnInsert: Record<string, any> = {
+      _id: user!.id,
+      email: user!.email,
+      created_at: new Date(),
+    };
+    // Only add default is_available_to_donate if not being set via $set
+    if (data.is_available_to_donate === undefined) {
+      setOnInsert.is_available_to_donate = true;
+    }
+
     const result = await usersCollection.findOneAndUpdate(
       { _id: user!.id } as any,
       { 
         $set: updateData,
-        $setOnInsert: { 
-          _id: user!.id,
-          email: user!.email,
-          is_available_to_donate: true,
-          created_at: new Date(),
-        }
+        $setOnInsert: setOnInsert
       },
       { upsert: true, returnDocument: 'after' }
     );
@@ -143,9 +151,13 @@ export async function PATCH(request: NextRequest) {
       id: result._id,
       ...result,
     }, 'Profile updated successfully');
-  } catch (error) {
-    console.error('Update profile error:', error);
-    return errorResponse('An unexpected error occurred', 'SERVER_ERROR', 500);
+  } catch (error: any) {
+    console.error('Update profile error:', {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack?.split('\n').slice(0, 5),
+    });
+    return errorResponse(`Profile update failed: ${error?.message || 'Unknown error'}`, 'SERVER_ERROR', 500);
   }
 }
 

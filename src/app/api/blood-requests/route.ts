@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const exclude_blood_group = searchParams.get('exclude_blood_group');
     const urgency = searchParams.get('urgency');
     const city = searchParams.get('city');
-    const status = searchParams.get('status') || 'pending'; // Default to active/pending requests
+    const status = searchParams.get('status') || 'active'; // Default to active requests (pending, in_progress, approved)
     
     // Pagination
     const page = parseInt(searchParams.get('page') || '1');

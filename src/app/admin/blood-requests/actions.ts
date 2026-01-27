@@ -14,7 +14,7 @@ async function getAuthenticatedUser() {
   if (!token) return null;
   try {
     return await getFirebaseAuth().verifySessionCookie(token, true);
-  } catch (e) {
+  } catch {
     return null;
   }
 }

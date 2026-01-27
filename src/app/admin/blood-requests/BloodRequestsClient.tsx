@@ -103,10 +103,10 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
     const matchesType = filterType === 'all' || req.blood_group === filterType;
     const matchesUrgency = filterUrgency === 'all' || req.urgency === filterUrgency;
     const matchesStatus = filterStatus === 'all' || req.status === filterStatus;
-    const matchesSearch = 
-        req.patient_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        req.hospital?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        req.profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = searchQuery === '' ||
+        (req.patient_name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
+        (req.hospital?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+        (req.profiles?.full_name?.toLowerCase() || '').includes(searchQuery.toLowerCase());
     
     return matchesType && matchesUrgency && matchesStatus && matchesSearch;
   });

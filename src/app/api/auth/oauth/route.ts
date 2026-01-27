@@ -49,6 +49,18 @@ export async function POST(request: NextRequest) {
       user = await usersCollection.findOne({ _id: uid });
     }
 
+    // Determine if user needs to complete profile (e.g., blood group missing)
+    const needsProfile = !user?.blood_group || !user?.phone_number;
+
+    // Optional: Update avatar if missing for existing user
+    if (user && !user.avatar_url && picture) {
+      await usersCollection.updateOne(
+        { _id: uid },
+        { $set: { avatar_url: picture, updated_at: new Date() } }
+      );
+      user.avatar_url = picture; // Update local obj for response
+    }
+
     // Create session cookie for web convenience (optional for mobile)
     const expiresIn = 60 * 60 * 24 * 14 * 1000; // 14 days
     const sessionCookie = await getFirebaseAuth().createSessionCookie(id_token, { expiresIn });
@@ -62,7 +74,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Determine if user needs to complete profile (e.g., blood group missing)
-    const needsProfile = !user?.blood_group || !user?.phone_number;
+    // needsProfile already calculated above
 
     return successResponse({
       access_token: id_token, // On Firebase, the ID token acts as the access token

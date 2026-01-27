@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   Activity,
   Zap,
-  MoreHorizontal,
   FileText
 } from 'lucide-react';
 import CountUp from "@/components/reactbits/CountUp";
@@ -49,7 +48,6 @@ interface DashboardData {
 export default function DashboardClient({ data }: { data: DashboardData }) {
   const router = useRouter();
   const t = useTranslations('dashboard');
-  const tCommon = useTranslations('common');
 
   const metrics = [
     { 
