@@ -1,22 +1,23 @@
 import { NextRequest } from 'next/server';
-import { successResponse, getAuthUser } from '@/lib/api-utils';
+import { successResponse, errorResponse } from '@/lib/api-utils';
+import { getCollection, Collections, LocationDocument } from '@/lib/db/mongodb';
 
 // GET /api/locations/countries
 export async function GET(request: NextRequest) {
-  // Public endpoint - no auth required
+  try {
+    const locationsCollection = await getCollection<LocationDocument>(Collections.LOCATIONS);
+    
+    const countries = await locationsCollection
+      .find({}, { projection: { _id: 1, name: 1, code: 1 } })
+      .sort({ name: 1 })
+      .toArray();
 
-
-  const countries = [
-    { code: 'BD', name: 'Bangladesh' },
-    { code: 'IN', name: 'India' },
-    { code: 'PK', name: 'Pakistan' },
-    { code: 'AE', name: 'United Arab Emirates' },
-    { code: 'SA', name: 'Saudi Arabia' },
-    { code: 'MY', name: 'Malaysia' },
-    { code: 'SG', name: 'Singapore' },
-    { code: 'US', name: 'United States' },
-    { code: 'GB', name: 'United Kingdom' },
-  ];
-
-  return successResponse({ countries, total: countries.length });
+    return successResponse({ 
+      countries, 
+      total: countries.length 
+    });
+  } catch (error) {
+    console.error('Error fetching countries:', error);
+    return errorResponse('Failed to fetch countries', 'SERVER_ERROR', 500);
+  }
 }

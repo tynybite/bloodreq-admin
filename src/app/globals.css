@@ -351,56 +351,148 @@
   color: transparent;
   display: inline-block;
 }
-/* Skeuomorphic tactile utilities */
-.tactile-panel {
-  background: var(--card);
-  box-shadow: 
-    8px 8px 16px rgba(0, 0, 0, 0.4),
-    -8px -8px 16px rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+/* BENTO GRID / APPLE-STYLE SYSTEM */
+
+:root {
+  --bg-bento: #F5F5F7;
+  --card-bento: #FFFFFF;
+  --text-bento: #1D1D1F;
+  --text-bento-muted: #86868b;
+  --shadow-bento: 0 8px 30px rgba(0,0,0,0.04);
+  --shadow-bento-hover: 0 20px 40px rgba(0,0,0,0.08);
+  --radius-bento: 24px;
 }
 
-.dark .tactile-panel {
-  background: linear-gradient(145deg, #15151e, #101018);
-  box-shadow: 
-    10px 10px 20px #050508,
-    -10px -10px 20px #1a1a24;
+.dark {
+  --bg-bento: #000000;
+  --card-bento: #1c1c1e;
+  --text-bento: #f5f5f7;
+  --text-bento-muted: #a1a1a6;
+  --shadow-bento: 0 8px 30px rgba(0,0,0,0.2);
+  --shadow-bento-hover: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+.bento-card {
+  background: var(--card-bento);
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.02); /* Very subtle border */
+}
+
+.dark .bento-card {
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.bento-card:hover {
+  transform: scale(1.02);
+  box-shadow: var(--shadow-bento-hover);
+  z-index: 10;
+}
+
+.bento-icon-bg {
+  background: linear-gradient(135deg, #F5F5F7 0%, #E5E5EA 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dark .bento-icon-bg {
+  background: linear-gradient(135deg, #2c2c2e 0%, #1c1c1e 100%);
+}
+
+/* Sidebar Bento */
+.sidebar-bento {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-right: 1px solid rgba(0,0,0,0.05);
+}
+
+.dark .sidebar-bento {
+  background: rgba(28, 28, 30, 0.8);
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+
+.nav-item-bento {
+  border-radius: 12px;
+  transition: all 0.2s;
+  color: var(--text-bento-muted);
+}
+
+.nav-item-bento:hover {
+  background: rgba(0,0,0,0.05);
+  color: var(--text-bento);
+}
+
+.dark .nav-item-bento:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.nav-item-bento-active {
+  background: #007AFF; /* Apple Blue */
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+.dark .nav-item-bento-active {
+  background: #0A84FF;
+}
+
+/* Typography */
+.font-bento {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.bento-title {
+  color: var(--text-bento);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.bento-subtitle {
+  color: var(--text-bento-muted);
+  font-weight: 500;
+}
+
+/* LEGACY SUPPORT (Tactile -> Bento Mapping) */
+.tactile-panel {
+  background: var(--card-bento);
+  border-radius: var(--radius-bento);
+  box-shadow: var(--shadow-bento);
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.02);
 }
 
 .tactile-panel-inset {
-  background: var(--background);
-  box-shadow: 
-    inset 6px 6px 12px rgba(0, 0, 0, 0.5),
-    inset -6px -6px 12px rgba(255, 255, 255, 0.01);
-  border: 1px solid rgba(255, 255, 255, 0.02);
+  @apply bg-gray-50 rounded-xl;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
 }
 
 .tactile-button {
-  @apply transition-all duration-200;
-  box-shadow: 
-    4px 4px 8px rgba(0, 0, 0, 0.3),
-    -4px -4px 8px rgba(255, 255, 255, 0.02);
+  background: white;
+  border: 1px solid rgba(0,0,0,0.1);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  border-radius: 12px;
+  transition: all 0.2s;
 }
 
-.tactile-button:active {
-  box-shadow: 
-    inset 2px 2px 5px rgba(0, 0, 0, 0.5),
-    inset -2px -2px 5px rgba(255, 255, 255, 0.02);
-  transform: translateY(1px);
+.tactile-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .medical-grid {
-  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  /* Remove grid for bento, or make it very subtle */
+  background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
   background-size: 20px 20px;
+  opacity: 0.5;
 }
 
 .led-indicator {
   @apply w-2 h-2 rounded-full;
   box-shadow: 0 0 8px currentColor;
-}
-
-.needle-gauge {
-  @apply relative overflow-hidden;
-  background: conic-gradient(from 180deg at 50% 100%, #ef4444 0deg, #eab308 90deg, #22c55e 180deg);
-  mask: radial-gradient(circle at 50% 100%, transparent 60%, black 61%);
 }

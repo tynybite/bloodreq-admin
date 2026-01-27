@@ -1,48 +1,44 @@
 import { NextRequest } from 'next/server';
-import { successResponse, errorResponse, getAuthUser } from '@/lib/api-utils';
+import { successResponse, errorResponse } from '@/lib/api-utils';
+import { getCollection, Collections, LocationDocument } from '@/lib/db/mongodb';
 
 // GET /api/locations/cities - Get cities for a country
 export async function GET(request: NextRequest) {
-  // Public endpoint - no auth required
-
-
   try {
     const { searchParams } = new URL(request.url);
-    const country = searchParams.get('country') || 'BD';
+    const countryCode = searchParams.get('country') || 'BD';
 
-    // Hardcoded cities by country - in production, use a database
-    const citiesByCountry: Record<string, string[]> = {
-      BD: [
-        'Dhaka', 'Chittagong', 'Khulna', 'Rajshahi', 'Sylhet',
-        'Rangpur', 'Barisal', 'Comilla', 'Gazipur', 'Narayanganj',
-        'Mymensingh', 'Bogra', 'Cox\'s Bazar', 'Jessore', 'Dinajpur'
-      ],
-      IN: [
-        'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai',
-        'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'
-      ],
-      PK: [
-        'Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Faisalabad',
-        'Multan', 'Peshawar', 'Quetta', 'Sialkot', 'Gujranwala'
-      ],
-      AE: ['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman', 'Ras Al Khaimah'],
-      SA: ['Riyadh', 'Jeddah', 'Mecca', 'Medina', 'Dammam'],
-      MY: ['Kuala Lumpur', 'George Town', 'Johor Bahru', 'Ipoh', 'Shah Alam'],
-      SG: ['Singapore'],
-      US: ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix'],
-      GB: ['London', 'Birmingham', 'Manchester', 'Glasgow', 'Liverpool'],
-    };
+    const locationsCollection = await getCollection<LocationDocument>(Collections.LOCATIONS);
+    
+    // Find the country document by code OR name (for backward compatibility)
+    const countryData = await locationsCollection.findOne({
+      $or: [
+        { code: countryCode },
+        { name: countryCode } // Support full name query like "United States"
+      ]
+    });
 
-    const cities = (citiesByCountry[country] || []).map(name => ({
-      name,
-      country,
+    if (!countryData) {
+      return successResponse({ 
+        cities: [], 
+        country: countryCode, 
+        total: 0 
+      });
+    }
+
+    // Map cities to consistent format
+    const cities = countryData.cities.map(city => ({
+      name: city.name,
+      slug: city.slug,
+      country: countryCode,
     }));
 
     return successResponse({
       cities,
-      country,
+      country: countryCode,
       total: cities.length,
     });
+
   } catch (error) {
     console.error('Get cities error:', error);
     return errorResponse('An unexpected error occurred', 'SERVER_ERROR', 500);

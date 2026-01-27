@@ -1,14 +1,21 @@
 // MongoDB Connection Configuration
-import { MongoClient, Db, Collection, ObjectId, Document, WithId } from 'mongodb';
+import {
+  MongoClient,
+  Db,
+  Collection,
+  ObjectId,
+  Document,
+  WithId,
+} from "mongodb";
 
 // Re-export types
 export { ObjectId, type WithId, type Document };
 
 const MONGODB_URI = process.env.MONGODB_URI!;
-const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || 'bloodreq';
+const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "bloodreq";
 
 if (!MONGODB_URI) {
-  throw new Error('Please add MONGODB_URI to your .env file');
+  throw new Error("Please add MONGODB_URI to your .env file");
 }
 
 let client: MongoClient;
@@ -20,7 +27,7 @@ declare global {
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === "development") {
   if (!global._mongoClientPromise) {
     client = new MongoClient(MONGODB_URI);
     global._mongoClientPromise = client.connect();
@@ -42,21 +49,34 @@ export async function getDb(): Promise<Db> {
 }
 
 // Collection helpers with type safety
-export async function getCollection<T extends Document>(name: string): Promise<Collection<T>> {
+export async function getCollection<T extends Document>(
+  name: string,
+): Promise<Collection<T>> {
   const db = await getDb();
   return db.collection<T>(name);
 }
 
 // Collection names as constants
 export const Collections = {
-  USERS: 'users',
-  BLOOD_REQUESTS: 'blood_requests',
-  DONATIONS: 'donations',
-  FUNDRAISERS: 'fundraisers',
-  NOTIFICATIONS: 'notifications',
-  ADMIN_USERS: 'admin_users',
-  SYSTEM_SETTINGS: 'system_settings',
+  USERS: "users",
+  BLOOD_REQUESTS: "blood_requests",
+  DONATIONS: "donations",
+  FUNDRAISERS: "fundraisers",
+  NOTIFICATIONS: "notifications",
+  ADMIN_USERS: "admin_users",
+  SYSTEM_SETTINGS: "system_settings",
+  LOCATIONS: "locations",
 } as const;
+
+export interface LocationDocument extends Document {
+  _id?: ObjectId;
+  name: string;
+  code: string;
+  cities: {
+    name: string;
+    slug: string;
+  }[];
+}
 
 // Common Interfaces
 export interface UserDocument extends Document {
@@ -127,11 +147,17 @@ export interface BloodRequestDocument extends Document {
   city: string;
   latitude?: number;
   longitude?: number;
-  urgency: 'critical' | 'urgent' | 'planned';
+  urgency: "critical" | "urgent" | "planned";
   contact_number: string;
   alternate_contact?: string;
   notes?: string;
-  status: 'pending' | 'approved' | 'in_progress' | 'fulfilled' | 'rejected' | 'cancelled'; // Added internal statuses
+  status:
+    | "pending"
+    | "approved"
+    | "in_progress"
+    | "fulfilled"
+    | "rejected"
+    | "cancelled"; // Added internal statuses
   created_at: Date;
   updated_at: Date;
 }
@@ -140,7 +166,7 @@ export interface DonationDocument extends Document {
   _id?: ObjectId;
   request_id: string;
   donor_id: string; // Firebase UID
-  status: 'offered' | 'accepted' | 'completed' | 'cancelled' | 'rejected';
+  status: "offered" | "accepted" | "completed" | "cancelled" | "rejected";
   message?: string;
   created_at: Date;
   updated_at: Date;
@@ -189,7 +215,7 @@ export interface FundraiserDocument extends Document {
   amount_needed: number;
   amount_raised: number;
   deadline?: Date;
-  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'closed';
+  status: "pending" | "approved" | "rejected" | "completed" | "closed";
   description?: string;
   requester_id: string; // Firebase UID
   cover_image_url?: string;

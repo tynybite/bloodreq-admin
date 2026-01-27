@@ -37,6 +37,10 @@ export async function sendEmail({ to, subject, html }: EmailOptions) {
     port: typeof port === 'string' ? parseInt(port) : port,
     secure: secure || port === 465 || port === '465',
     auth: { user, pass },
+    tls: {
+      // Allow self-signed certificates
+      rejectUnauthorized: false,
+    },
   });
 
   try {
