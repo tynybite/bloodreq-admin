@@ -22,8 +22,6 @@ import {
   Megaphone,
   BarChart3,
   ChevronLeft,
-  Search,
-  Command,
   CreditCard,
 } from "lucide-react";
 
@@ -82,25 +80,20 @@ export function Sidebar() {
   return (
     <motion.aside 
       initial={false}
-      animate={{ width: collapsed ? 72 : 260 }}
-      transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-      className="fixed left-0 top-0 z-40 h-screen tactile-panel border-r-0 overflow-hidden hidden lg:block"
+      animate={{ width: collapsed ? 80 : 280 }}
+      transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+      className="fixed left-0 top-0 z-40 h-screen border-r border-border/40 bg-card/30 backdrop-blur-xl overflow-hidden hidden lg:block"
     >
-      {/* Texture Overlay */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.03] medical-grid" />
-      
-      <div className="absolute -top-10 -left-10 w-40 h-40 bg-rose-500/5 rounded-full blur-3xl pointer-events-none" />
-      
-      <div className="relative flex h-full flex-col py-4">
+      <div className="flex h-full flex-col py-6">
         {/* Logo & Collapse */}
-        <div className={`mb-10 flex items-center px-4 ${collapsed ? 'justify-center' : 'justify-between'}`}>
-          <Link href="/admin/dashboard" className="flex items-center gap-4">
+        <div className={`mb-8 flex items-center ${collapsed ? 'justify-center px-2' : 'justify-between px-6'}`}>
+          <Link href="/admin/dashboard" className="flex items-center gap-4 group">
             <motion.div 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="flex h-10 w-10 items-center justify-center rounded-xl tactile-panel bg-white overflow-hidden shadow-rose-500/10"
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25"
             >
-              <img src="/favicon.ico" alt="BloodReq" className="h-6 w-6 object-contain" />
+              <img src="/favicon.ico" alt="BloodReq" className="h-6 w-6 object-contain brightness-0 invert" />
             </motion.div>
             <AnimatePresence>
               {!collapsed && (
@@ -110,8 +103,8 @@ export function Sidebar() {
                   exit={{ opacity: 0, x: -10 }}
                   className="overflow-hidden"
                 >
-                  <h1 className="font-display text-xl font-bold tracking-tighter text-foreground whitespace-nowrap">BloodReq</h1>
-                  <p className="text-[9px] font-mono font-bold uppercase tracking-[0.2em] text-rose-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.3)]">{role?.replace('_', ' ') || 'Admin'}</p>
+                  <h1 className="font-display text-xl font-bold tracking-tight text-foreground whitespace-nowrap">BloodReq</h1>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{role?.replace('_', ' ') || 'Admin'}</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -126,7 +119,7 @@ export function Sidebar() {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setCollapsed(true)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg tactile-button bg-secondary/30 text-muted-foreground hover:text-foreground"
+                className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-secondary/50 text-muted-foreground transition-colors"
               >
                 <ChevronLeft className="h-4 w-4" />
               </motion.button>
@@ -136,89 +129,97 @@ export function Sidebar() {
 
         {/* Expand button when collapsed */}
         {collapsed && (
-          <div className="px-4 mb-4">
+          <div className="px-4 mb-4 flex justify-center">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setCollapsed(false)}
-              className="flex h-10 w-full items-center justify-center rounded-xl tactile-button bg-secondary/30 text-muted-foreground"
+              className="flex h-10 w-10 items-center justify-center rounded-xl hover:bg-secondary/50 text-muted-foreground transition-colors"
             >
               <ChevronLeft className="h-4 w-4 rotate-180" />
             </motion.button>
           </div>
         )}
 
-
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-4 space-y-3 custom-scrollbar">
+        {/* Navigation Items */}
+        <div className="flex-1 overflow-y-auto px-4 space-y-1 scrollbar-hide">
           {filteredMenuItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-            
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link key={item.href} href={item.href}>
-                <motion.div 
+                <motion.div
                   onHoverStart={() => setHoveredItem(item.href)}
                   onHoverEnd={() => setHoveredItem(null)}
-                  className={`relative flex items-center transition-all duration-200 ${
-                    collapsed ? 'justify-center w-12 h-12 rounded-xl mx-auto' : 'gap-4 px-4 py-3 rounded-2xl'
+                  className={`relative flex items-center py-3 rounded-xl transition-all duration-200 ${
+                    collapsed ? 'justify-center px-2' : 'px-4'
                   } ${
                     isActive 
-                      ? 'tactile-panel-inset text-rose-500' 
-                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary/20'
+                      ? 'text-primary' 
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <div className="relative flex items-center justify-center">
-                    <item.icon className={`h-[18px] w-[18px] transition-transform duration-200 ${isActive ? 'scale-110 drop-shadow-[0_0_8px_currentColor]' : 'group-hover:scale-110'}`} />
-                    
-                    {/* LED Indicator */}
-                    <AnimatePresence>
-                      {isActive && (
-                        <motion.div
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          exit={{ scale: 0, opacity: 0 }}
-                          className="absolute -right-3 top-[-2px] led-indicator text-rose-500 scale-75"
-                        />
-                      )}
-                    </AnimatePresence>
-                  </div>
+                  {/* Active Background */}
+                  {isActive && (
+                    <motion.div
+                      layoutId="sidebar-active"
+                      className="absolute inset-0 rounded-xl bg-primary/10 border border-primary/20"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
 
+                  {/* Hover Background - Only show if not active */}
+                  {hoveredItem === item.href && !isActive && (
+                    <motion.div
+                      layoutId="sidebar-hover"
+                      className="absolute inset-0 rounded-xl bg-secondary/50"
+                      transition={{ duration: 0.2 }}
+                    />
+                  )}
+
+                  {/* Icon */}
+                  <item.icon className={`relative z-10 shrink-0 ${collapsed ? 'h-6 w-6' : 'h-5 w-5'} ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                  
+                  {/* Label */}
                   <AnimatePresence>
                     {!collapsed && (
-                      <motion.span 
-                        initial={{ opacity: 0, x: -5 }}
+                      <motion.span
+                        initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -5 }}
-                        className="text-[14px] font-mono font-bold uppercase tracking-widest whitespace-nowrap"
+                        exit={{ opacity: 0, x: -10 }}
+                        className={`relative z-10 ml-3 text-sm font-medium tracking-wide whitespace-nowrap ${isActive ? 'font-bold' : ''}`}
                       >
                         {item.label}
                       </motion.span>
                     )}
                   </AnimatePresence>
 
-                  {collapsed && hoveredItem === item.href && (
+                  {/* Active Indicator Dot */}
+                  {isActive && collapsed && (
                     <motion.div
-                      initial={{ opacity: 0, x: 5 }}
-                      animate={{ opacity: 1, x: 10 }}
-                      className="absolute left-full ml-4 px-3 py-2 rounded-xl tactile-panel bg-popover text-[11px] font-mono font-bold uppercase tracking-widest text-foreground whitespace-nowrap z-50 shadow-rose-500/10"
-                    >
-                      {item.label}
-                    </motion.div>
+                      layoutId="sidebar-dot"
+                      className="absolute right-2 w-1.5 h-1.5 rounded-full bg-primary"
+                    />
                   )}
                 </motion.div>
               </Link>
             );
           })}
-        </nav>
+        </div>
 
-        {/* Footer */}
-        <div className="mt-auto px-4 py-6 border-t border-border/20">
+        {/* User Profile / Logout */}
+        <div className="mt-auto px-4 pt-4 border-t border-border/40">
           <button 
             onClick={handleSignOut}
-            className={`flex w-full items-center rounded-xl transition-all duration-200 tactile-button bg-rose-500/5 hover:bg-rose-500/10 text-rose-500/80 hover:text-rose-500 ${collapsed ? 'justify-center h-12 w-12 mx-auto' : 'gap-4 px-4 py-3'}`}
+            className={`flex w-full items-center rounded-xl p-3 transition-all hover:bg-rose-500/10 hover:text-rose-600 group ${
+              collapsed ? 'justify-center' : ''
+            }`}
           >
-            <LogOut className="h-[18px] w-[18px]" />
-            {!collapsed && <span className="text-[12px] font-mono font-bold uppercase tracking-widest">{t('logout')}</span>}
+            <LogOut className="h-5 w-5 text-muted-foreground group-hover:text-rose-600 transition-colors" />
+            {!collapsed && (
+              <span className="ml-3 text-sm font-medium text-muted-foreground group-hover:text-rose-600 transition-colors">
+                {t('logout')}
+              </span>
+            )}
           </button>
         </div>
       </div>
