@@ -15,11 +15,16 @@ import {
   Phone, 
   Pencil,
   Save,
-  X
+  X,
+  ExternalLink
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { UserDetailSheet } from "../users/UserDetailSheet";
+import { getUser } from "../users/actions";
+import { toast } from "sonner";
+import { suspendUser, banUser, activateUser } from "../users/actions";
 
 interface RequestDetailSheetProps {
   request: any;
@@ -37,6 +42,11 @@ export default function RequestDetailSheet({
   const [isEditing, setIsEditing] = useState(false);
   const [adminNotes, setAdminNotes] = useState(request?.admin_notes || "");
   const [editedRequest, setEditedRequest] = useState<any>(request || {});
+  
+  // User Profile State
+  const [isUserSheetOpen, setIsUserSheetOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(false);
 
   useEffect(() => {
     if (request) {
@@ -56,7 +66,44 @@ export default function RequestDetailSheet({
     setEditedRequest((prev: any) => ({ ...prev, [field]: value }));
   };
 
+  const handleViewProfile = async () => {
+      if (!request.requester?.id) {
+          toast.error("No requester ID available");
+          return;
+      }
+      
+      setIsLoadingUser(true);
+      try {
+          const user = await getUser(request.requester.id);
+          if (user) {
+              setSelectedUser(user);
+              setIsUserSheetOpen(true);
+          } else {
+              toast.error("User not found");
+          }
+      } catch (error) {
+          toast.error("Failed to fetch user details");
+      } finally {
+          setIsLoadingUser(false);
+      }
+  };
+
+  const handleUserAction = async (action: 'suspend' | 'ban' | 'activate', id: string) => {
+    try {
+        if (action === 'suspend') await suspendUser(id);
+        if (action === 'ban') await banUser(id);
+        if (action === 'activate') await activateUser(id);
+        
+        toast.success(`User ${action}ed successfully`);
+        // Refresh local user state if needed or just let it close
+        setIsUserSheetOpen(false);
+    } catch (error: any) {
+        toast.error(error.message);
+    }
+  };
+
   return (
+    <>
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-xl p-0 overflow-hidden bg-background">
         <div className="h-full overflow-y-auto">
@@ -162,7 +209,15 @@ export default function RequestDetailSheet({
 
                 <div className="space-y-1">
                     <span className="text-sm font-medium text-muted-foreground">Requester</span>
-                    <p className="text-base font-medium">{request.profiles?.full_name || 'N/A'}</p>
+                    <Button 
+                        variant="link" 
+                        className="p-0 h-auto text-base font-medium text-primary hover:underline flex items-center gap-2"
+                        onClick={handleViewProfile}
+                        disabled={isLoadingUser}
+                    >
+                        {isLoadingUser ? 'Loading...' : (request.requester?.full_name || 'N/A')}
+                        <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                    </Button>
                 </div>
               </div>
             </div>
@@ -233,5 +288,13 @@ export default function RequestDetailSheet({
         </div>
       </SheetContent>
     </Sheet>
+    
+    <UserDetailSheet 
+        user={selectedUser}
+        open={isUserSheetOpen}
+        onOpenChange={setIsUserSheetOpen}
+        onAction={handleUserAction}
+    />
+    </>
   );
 }

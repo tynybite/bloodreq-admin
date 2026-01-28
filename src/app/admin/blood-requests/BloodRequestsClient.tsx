@@ -314,9 +314,9 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
                 <div className="p-5">
                   {/* Header Row */}
                   <div className="flex items-start justify-between mb-5">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 flex-1 min-w-0 mr-2">
                       {/* Blood Group - Refined Badge */}
-                      <div className={`relative w-14 h-14 rounded-2xl bg-gradient-to-br ${bloodGroupColors[request.blood_group] || 'from-gray-500 to-gray-600'} flex items-center justify-center shadow-lg shadow-primary/10 ring-2 ring-white/10`}>
+                      <div className={`relative w-14 h-14 rounded-2xl bg-gradient-to-br ${bloodGroupColors[request.blood_group] || 'from-gray-500 to-gray-600'} flex items-center justify-center shadow-lg shadow-primary/10 ring-2 ring-white/10 shrink-0`}>
                         <span className="text-lg font-bold text-white tracking-tight">{request.blood_group}</span>
                         <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-card border-2 border-background flex items-center justify-center">
                           <span className="text-[10px] font-bold text-foreground">{request.units}</span>
@@ -324,8 +324,8 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-base truncate">{request.patient_name}</h3>
-                          <Badge className={`${urgencyStyles.bg} ${urgencyStyles.text} capitalize text-[10px] px-2 py-0.5 font-medium rounded-full`}>
+                          <h3 className="font-semibold text-base truncate">{request.patient_name || 'Anonymous'}</h3>
+                          <Badge className={`${urgencyStyles.bg} ${urgencyStyles.text} capitalize text-[10px] px-2 py-0.5 font-medium rounded-full shrink-0`}>
                             {request.urgency === 'critical' && <Zap className="w-2.5 h-2.5 mr-1" />}
                             {getUrgencyLabel(request.urgency)}
                           </Badge>
@@ -337,7 +337,7 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl shrink-0">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -392,10 +392,10 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
                   <div className="flex items-center justify-between pt-4 border-t border-border/30">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center text-xs font-semibold ring-1 ring-border/50">
-                        {request.profiles?.full_name?.split(' ').map((n: string) => n[0]).join('') || '?'}
+                        {request.requester?.full_name?.split(' ').map((n: string) => n[0]).join('') || '?'}
                       </div>
                       <div>
-                        <p className="text-sm font-medium">{request.profiles?.full_name || 'Anonymous'}</p>
+                        <p className="text-sm font-medium">{request.requester?.full_name || 'Anonymous'}</p>
                         <p className="text-xs text-muted-foreground font-mono">{request.contact_number}</p>
                       </div>
                     </div>
