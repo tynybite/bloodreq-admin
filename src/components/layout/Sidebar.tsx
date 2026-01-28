@@ -25,6 +25,8 @@ import {
   CreditCard,
 } from "lucide-react";
 
+import { cn } from "@/lib/utils";
+
 import { filterMenuItems, AdminRole } from "@/lib/rbac";
 import { useUser } from "@/contexts/UserContext";
 import { auth } from "@/lib/auth/firebase-client";
@@ -46,7 +48,11 @@ const menuConfig = [
   { icon: Settings, labelKey: 'settings', href: '/admin/settings' },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  className?: string;
+}
+
+export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { collapsed, setCollapsed } = useSidebar();
@@ -82,7 +88,10 @@ export function Sidebar() {
       initial={false}
       animate={{ width: collapsed ? 80 : 280 }}
       transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-      className="fixed left-0 top-0 z-40 h-screen border-r border-border/40 bg-card/30 backdrop-blur-xl overflow-hidden hidden lg:block"
+      className={cn(
+        "fixed left-0 top-0 z-40 h-screen border-r border-border/40 bg-card/30 backdrop-blur-xl overflow-hidden hidden lg:block", 
+        className
+      )}
     >
       <div className="flex h-full flex-col py-6">
         {/* Logo & Collapse */}
