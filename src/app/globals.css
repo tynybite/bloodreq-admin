@@ -365,7 +365,7 @@
 
 .dark {
   --bg-bento: #000000;
-  --card-bento: #1c1c1e; /* Slightly lighter than pure black for cards */
+  --card-bento: #1c1c1e;
   --text-bento: #f5f5f7;
   --text-bento-muted: #a1a1a6;
   --shadow-bento: 0 8px 30px rgba(0,0,0,0.2);
@@ -378,75 +378,17 @@
   box-shadow: var(--shadow-bento);
   transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
   overflow: hidden;
-  border: 1px solid rgba(0,0,0,0.04);
+  border: 1px solid rgba(0,0,0,0.02); /* Very subtle border */
 }
 
 .dark .bento-card {
-  border: 1px solid rgba(255,255,255,0.1);
-  background: var(--card-bento); /* Explicitly set background */
+  border: 1px solid rgba(255,255,255,0.05);
 }
 
 .bento-card:hover {
   transform: scale(1.02);
   box-shadow: var(--shadow-bento-hover);
   z-index: 10;
-}
-
-/* Metric Card Colors */
-/* Blue */
-.metric-blue {
-    @apply bg-blue-50 text-blue-600;
-}
-.dark .metric-blue {
-    @apply bg-blue-950/30 text-blue-400;
-}
-.metric-icon-blue {
-    @apply bg-blue-100;
-}
-.dark .metric-icon-blue {
-    @apply bg-blue-900/50;
-}
-
-/* Rose / Red */
-.metric-rose {
-    @apply bg-rose-50 text-rose-600;
-}
-.dark .metric-rose {
-    @apply bg-rose-950/30 text-rose-400;
-}
-.metric-icon-rose {
-    @apply bg-rose-100;
-}
-.dark .metric-icon-rose {
-    @apply bg-rose-900/50;
-}
-
-/* Amber / Orange */
-.metric-amber {
-    @apply bg-amber-50 text-amber-600;
-}
-.dark .metric-amber {
-    @apply bg-amber-950/30 text-amber-400;
-}
-.metric-icon-amber {
-    @apply bg-amber-100;
-}
-.dark .metric-icon-amber {
-    @apply bg-amber-900/50;
-}
-
-/* Emerald / Green */
-.metric-emerald {
-    @apply bg-emerald-50 text-emerald-600;
-}
-.dark .metric-emerald {
-    @apply bg-emerald-950/30 text-emerald-400;
-}
-.metric-icon-emerald {
-    @apply bg-emerald-100;
-}
-.dark .metric-icon-emerald {
-    @apply bg-emerald-900/50;
 }
 
 .bento-icon-bg {
@@ -502,14 +444,6 @@
 .font-bento {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   letter-spacing: -0.01em;
-}
-
-.text-bento {
-  color: var(--text-bento);
-}
-
-.text-bento-muted {
-  color: var(--text-bento-muted);
 }
 
 .bento-title {

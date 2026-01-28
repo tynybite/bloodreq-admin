@@ -1,8 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
+
+import { useSidebar } from "./SidebarContext";
 import { 
   LayoutDashboard, 
   Droplets, 
@@ -10,118 +14,214 @@ import {
   Users, 
   Settings, 
   LogOut,
-  MapPin,
-  Megaphone,
-  Flag,
-  ShieldCheck,
-  CreditCard,
-  Mail,
   Bell,
+  Mail,
+  Heart,
+  MapPin,
+  Shield,
+  Megaphone,
+  BarChart3,
   ChevronLeft,
-  ChevronRight
+  Search,
+  Command,
+  CreditCard,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { useSidebar } from "@/components/layout/SidebarContext";
 
-interface SidebarProps {
-  className?: string;
-  isMobile?: boolean; // If true, disable collapse logic or force expanded
-}
+import { filterMenuItems, AdminRole } from "@/lib/rbac";
+import { useUser } from "@/contexts/UserContext";
+import { auth } from "@/lib/auth/firebase-client";
 
-export const Sidebar = ({ className, isMobile = false }: SidebarProps) => {
+// Menu item keys for translation
+const menuConfig = [
+  { icon: LayoutDashboard, labelKey: 'dashboard', href: '/admin/dashboard' },
+  { icon: Droplets, labelKey: 'bloodRequests', href: '/admin/blood-requests' },
+  { icon: HandCoins, labelKey: 'fundraisers', href: '/admin/fundraisers' },
+  { icon: Heart, labelKey: 'donations', href: '/admin/donations' },
+  { icon: Users, labelKey: 'users', href: '/admin/users' },
+  { icon: MapPin, labelKey: 'locations', href: '/admin/locations' },
+  { icon: Shield, labelKey: 'moderators', href: '/admin/moderators' },
+  { icon: Megaphone, labelKey: 'ads', href: '/admin/ads' },
+  { icon: BarChart3, labelKey: 'reports', href: '/admin/reports' },
+  { icon: Bell, labelKey: 'notifications', href: '/admin/notifications' },
+  { icon: Mail, labelKey: 'emailSettings', href: '/admin/email' },
+  { icon: CreditCard, labelKey: 'paymentSettings', href: '/admin/payment-settings' },
+  { icon: Settings, labelKey: 'settings', href: '/admin/settings' },
+];
+
+export function Sidebar() {
   const pathname = usePathname();
-  const t = useTranslations('nav');
+  const router = useRouter();
   const { collapsed, setCollapsed } = useSidebar();
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const t = useTranslations('nav');
+  
+  const { user } = useUser();
+  const role = user?.role as AdminRole || 'admin'; 
 
-  // If mobile, force expanded state for visual purposes (layout ignores width)
-  // But strictly speaking, Sidebar context tracks 'collapsed' globally for Desktop.
-  // We'll use a local effectiveCollapsed
-  const isCollapsed = isMobile ? false : collapsed;
-  const sidebarWidth = isCollapsed ? 'w-[72px]' : 'w-[260px]';
+  const handleSignOut = async () => {
+    await auth.signOut();
+    await fetch('/api/auth/signout', { method: 'POST' });
+    router.replace('/login');
+  };
 
-  const routes = [
-    { label: t('dashboard'), icon: LayoutDashboard, href: "/admin/dashboard" },
-    { label: t('bloodRequests'), icon: Droplets, href: "/admin/blood-requests" },
-    { label: t('users'), icon: Users, href: "/admin/users" },
-    { label: t('fundraisers'), icon: HandCoins, href: "/admin/fundraisers" }, 
-    { label: t('donations'), icon: HandCoins, href: "/admin/donations" },
-    { label: t('locations'), icon: MapPin, href: "/admin/locations" }, 
-    { label: t('ads'), icon: Megaphone, href: "/admin/ads" },
-    { label: t('reports'), icon: Flag, href: "/admin/reports" },
-    { label: t('moderators'), icon: ShieldCheck, href: "/admin/moderators" },
-    { label: t('paymentSettings'), icon: CreditCard, href: "/admin/payment-settings" },
-    { label: t('email'), icon: Mail, href: "/admin/email" },
-    { label: t('notifications'), icon: Bell, href: "/admin/notifications" },
-    { label: t('settings'), icon: Settings, href: "/admin/settings" },
-  ];
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Build menu items with translated labels
+  const menuItems = menuConfig.map(item => ({
+    ...item,
+    label: t(item.labelKey as any) || item.labelKey,
+  }));
+
+  const filteredMenuItems = role ? filterMenuItems(menuItems, role) : [];
+
+  if (!mounted) return null;
 
   return (
-    <div className={cn(
-        "fixed inset-y-0 left-0 z-30 space-y-4 py-4 flex flex-col h-full sidebar-bento text-[#1D1D1F] transition-[width] duration-300 ease-in-out", 
-        sidebarWidth,
-        className
-    )}>
-      <div className="px-3 py-2 flex-1 flex flex-col">
-        <Link href="/admin/dashboard" className={cn("flex items-center mb-10 transition-all", isCollapsed ? "justify-center" : "pl-3 gap-3")}>
-          <div className="relative w-8 h-8 flex items-center justify-center bg-[#FF2D55] rounded-lg shadow-lg shadow-red-500/30 flex-shrink-0">
-            <Droplets className="h-5 w-5 text-white" />
-          </div>
-          {!isCollapsed && (
-             <h1 className="text-xl font-bold tracking-tight whitespace-nowrap overflow-hidden">
-                BloodReq
-             </h1>
-          )}
-        </Link>
-        
-        <div className="space-y-1 flex-1 overflow-y-auto overflow-x-hidden">
-          {routes.map((route) => (
-            <Link
-              key={route.href}
-              href={route.href}
-              className={cn(
-                "text-sm group flex p-3 w-full font-medium cursor-pointer nav-item-bento transition-all",
-                pathname === route.href ? "nav-item-bento-active" : "hover:bg-black/5 dark:hover:bg-white/10",
-                isCollapsed ? "justify-center" : "justify-start"
+    <motion.aside 
+      initial={false}
+      animate={{ width: collapsed ? 72 : 260 }}
+      transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+      className="fixed left-0 top-0 z-40 h-screen tactile-panel border-r-0 overflow-hidden hidden lg:block"
+    >
+      {/* Texture Overlay */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.03] medical-grid" />
+      
+      <div className="absolute -top-10 -left-10 w-40 h-40 bg-rose-500/5 rounded-full blur-3xl pointer-events-none" />
+      
+      <div className="relative flex h-full flex-col py-4">
+        {/* Logo & Collapse */}
+        <div className={`mb-10 flex items-center px-4 ${collapsed ? 'justify-center' : 'justify-between'}`}>
+          <Link href="/admin/dashboard" className="flex items-center gap-4">
+            <motion.div 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex h-10 w-10 items-center justify-center rounded-xl tactile-panel bg-white overflow-hidden shadow-rose-500/10"
+            >
+              <img src="/favicon.ico" alt="BloodReq" className="h-6 w-6 object-contain" />
+            </motion.div>
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.div 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  className="overflow-hidden"
+                >
+                  <h1 className="font-display text-xl font-bold tracking-tighter text-foreground whitespace-nowrap">BloodReq</h1>
+                  <p className="text-[9px] font-mono font-bold uppercase tracking-[0.2em] text-rose-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.3)]">{role?.replace('_', ' ') || 'Admin'}</p>
+                </motion.div>
               )}
-              title={isCollapsed ? route.label : undefined}
-            >
-              <div className="flex items-center flex-1">
-                <route.icon className={cn("h-5 w-5 flex-shrink-0 transition-all", isCollapsed ? "mr-0" : "mr-3", pathname === route.href ? "text-white" : "text-[#86868b] group-hover:text-[#1D1D1F]")} />
-                {!isCollapsed && <span className="truncate">{route.label}</span>}
-              </div>
-            </Link>
-          ))}
+            </AnimatePresence>
+          </Link>
+          
+          <AnimatePresence>
+            {!collapsed && (
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setCollapsed(true)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg tactile-button bg-secondary/30 text-muted-foreground hover:text-foreground"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
-      </div>
 
-      <div className="px-3 py-2 mt-auto space-y-2">
-        {/* Toggle Button (Desktop Only) */}
-        {!isMobile && (
-            <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-center hover:bg-black/5 dark:hover:bg-white/10 text-[#86868b]"
-                onClick={() => setCollapsed(!collapsed)}
+        {/* Expand button when collapsed */}
+        {collapsed && (
+          <div className="px-4 mb-4">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setCollapsed(false)}
+              className="flex h-10 w-full items-center justify-center rounded-xl tactile-button bg-secondary/30 text-muted-foreground"
             >
-                {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </Button>
+              <ChevronLeft className="h-4 w-4 rotate-180" />
+            </motion.button>
+          </div>
         )}
 
-        {/* Logout Button */}
-        <Button 
-            variant="ghost" 
-            className={cn(
-                "w-full text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all",
-                isCollapsed ? "justify-center px-0" : "justify-start"
-            )}
-            onClick={() => window.location.href = '/login'}
-            title={isCollapsed ? t('logout') : undefined}
-        >
-            <LogOut className={cn("h-5 w-5", isCollapsed ? "mr-0" : "mr-3")} />
-            {!isCollapsed && t('logout')}
-        </Button>
+
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto px-4 space-y-3 custom-scrollbar">
+          {filteredMenuItems.map((item) => {
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            
+            return (
+              <Link key={item.href} href={item.href}>
+                <motion.div 
+                  onHoverStart={() => setHoveredItem(item.href)}
+                  onHoverEnd={() => setHoveredItem(null)}
+                  className={`relative flex items-center transition-all duration-200 ${
+                    collapsed ? 'justify-center w-12 h-12 rounded-xl mx-auto' : 'gap-4 px-4 py-3 rounded-2xl'
+                  } ${
+                    isActive 
+                      ? 'tactile-panel-inset text-rose-500' 
+                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary/20'
+                  }`}
+                >
+                  <div className="relative flex items-center justify-center">
+                    <item.icon className={`h-[18px] w-[18px] transition-transform duration-200 ${isActive ? 'scale-110 drop-shadow-[0_0_8px_currentColor]' : 'group-hover:scale-110'}`} />
+                    
+                    {/* LED Indicator */}
+                    <AnimatePresence>
+                      {isActive && (
+                        <motion.div
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          className="absolute -right-3 top-[-2px] led-indicator text-rose-500 scale-75"
+                        />
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  <AnimatePresence>
+                    {!collapsed && (
+                      <motion.span 
+                        initial={{ opacity: 0, x: -5 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -5 }}
+                        className="text-[14px] font-mono font-bold uppercase tracking-widest whitespace-nowrap"
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+
+                  {collapsed && hoveredItem === item.href && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 5 }}
+                      animate={{ opacity: 1, x: 10 }}
+                      className="absolute left-full ml-4 px-3 py-2 rounded-xl tactile-panel bg-popover text-[11px] font-mono font-bold uppercase tracking-widest text-foreground whitespace-nowrap z-50 shadow-rose-500/10"
+                    >
+                      {item.label}
+                    </motion.div>
+                  )}
+                </motion.div>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Footer */}
+        <div className="mt-auto px-4 py-6 border-t border-border/20">
+          <button 
+            onClick={handleSignOut}
+            className={`flex w-full items-center rounded-xl transition-all duration-200 tactile-button bg-rose-500/5 hover:bg-rose-500/10 text-rose-500/80 hover:text-rose-500 ${collapsed ? 'justify-center h-12 w-12 mx-auto' : 'gap-4 px-4 py-3'}`}
+          >
+            <LogOut className="h-[18px] w-[18px]" />
+            {!collapsed && <span className="text-[12px] font-mono font-bold uppercase tracking-widest">{t('logout')}</span>}
+          </button>
+        </div>
       </div>
-    </div>
+    </motion.aside>
   );
-};
+}
