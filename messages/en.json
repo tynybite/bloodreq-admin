@@ -59,7 +59,13 @@
     "bloodTypeDistribution": "Blood Type Distribution",
     "downloadReport": "Download Report",
     "manageRequests": "Manage Requests",
-    "viewCritical": "View Critical Requests"
+    "viewCritical": "View Critical Requests",
+    "overview": "Overview",
+    "analytics": "Analytics",
+    "reports": "Reports",
+    "pendingVerifications": "Pending Verifications",
+    "urgentRequests": "Urgent Requests",
+    "newFundraisers": "New Fundraisers"
   },
   "bloodRequests": {
     "title": "Blood Requests",

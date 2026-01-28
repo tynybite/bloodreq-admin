@@ -86,8 +86,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return successResponse({
       id: bloodRequest._id?.toString(),
+      request_type: 'blood_request',
       ...bloodRequest,
       _id: undefined,
+      // Ensure specific fields key names match mobile expectations
+      patient_age: bloodRequest.patient_age,
+      alternate_contact: bloodRequest.alternate_contact,
+      notes: bloodRequest.notes || bloodRequest.admin_notes,
+      updated_at: bloodRequest.updated_at,
+      location: bloodRequest.city, // Mobile expects 'location' string often as city/address
       requester: requester ? {
         id: requester._id,
         full_name: requester.full_name,

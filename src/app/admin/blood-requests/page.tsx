@@ -13,11 +13,30 @@ export default async function BloodRequestsPage() {
     ...r,
     id: r._id?.toString(),
     _id: undefined,
-    // Also stringify any other ObjectId fields if present
     requester_id: r.requester_id?.toString(),
     created_at: r.created_at?.toISOString(),
     updated_at: r.updated_at?.toISOString(),
   }));
+
+  // Fetch requester details
+  const usersCollection = await getCollection(Collections.USERS);
+  const requesterIds = [...new Set(requests.map(r => r.requester_id).filter(Boolean))];
+  const users = await usersCollection.find({ _id: { $in: requesterIds as any[] } }).toArray();
+  const usersMap = new Map(users.map(u => [u._id.toString(), u]));
+
+  const requestsWithUser = requests.map(r => {
+    const user = r.requester_id ? usersMap.get(r.requester_id) : null;
+    return {
+      ...r,
+      requester: user ? {
+        full_name: user.full_name,
+        avatar_url: user.avatar_url,
+        phone_number: user.phone_number,
+        id: user._id.toString()
+      } : null,
+      profiles: user ? { full_name: user.full_name } : null // Legacy fallback
+    };
+  });
 
   // Stats
   const totalRequests = await requestsCollection.countDocuments({});
@@ -32,5 +51,5 @@ export default async function BloodRequestsPage() {
     { label: 'Critical', value: criticalRequests || 0, gradient: 'from-rose-500 to-pink-500' },
   ];
 
-  return <BloodRequestsClient initialRequests={requests || []} stats={stats} />;
+  return <BloodRequestsClient initialRequests={requestsWithUser || []} stats={stats} />;
 }

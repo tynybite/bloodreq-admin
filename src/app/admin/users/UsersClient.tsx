@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -41,7 +41,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import CountUp from "@/components/reactbits/CountUp";
-import { suspendUser, banUser, activateUser, bulkSuspendUsers, bulkBanUsers } from './actions';
+import { suspendUser, banUser, activateUser, bulkSuspendUsers, bulkBanUsers, getUser } from './actions';
 import { toast } from 'sonner';
 import { UserDetailSheet } from './UserDetailSheet';
 import { useTranslations } from 'next-intl';
@@ -85,8 +85,20 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isLoadingUser, setIsLoadingUser] = useState(false);
+  
+  // Pagination & Sorting (placeholder logic for now as simplified in original)
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const t = useTranslations('users');
   const tCommon = useTranslations('common');
+
+  useEffect(() => {
+    // Sync initial users if they change (e.g. revalidation)
+    setUsers(initialUsers);
+  }, [initialUsers]);
 
   const toggleUser = (id: string) => {
     setSelectedUsers(prev => 
@@ -340,11 +352,22 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem><Mail className="mr-2 h-4 w-4" />{t('email')}</DropdownMenuItem>
                     <DropdownMenuItem><Phone className="mr-2 h-4 w-4" />{t('phone')}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => {
-                        setSelectedUser(user);
-                        setIsDetailOpen(true);
+                    <DropdownMenuItem onClick={async (e) => {
+                        e.preventDefault();
+                        setIsLoadingUser(true);
+                        try {
+                            const fullUser = await getUser(user.id);
+                            setSelectedUser(fullUser || user);
+                            setIsDetailOpen(true);
+                        } catch (error) {
+                             toast.error("Failed to load details");
+                             setSelectedUser(user);
+                             setIsDetailOpen(true);
+                        } finally {
+                            setIsLoadingUser(false);
+                        }
                     }}>
-                        <Shield className="mr-2 h-4 w-4" />{tCommon('view')}
+                        <Shield className="mr-2 h-4 w-4" />{isLoadingUser && selectedUser?.id === user.id ? 'Loading...' : tCommon('view')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {user.status !== 'active' && (

@@ -100,19 +100,26 @@ export async function GET(request: NextRequest) {
 
       return {
         id: req._id?.toString(),
+        request_type: 'blood_request', // Explicit type for mobile
         patient_name: req.patient_name,
         patient_age: req.patient_age,
         blood_group: req.blood_group,
         units: req.units,
         hospital: req.hospital,
-        address: req.address,
+        // Send both flattened and nested location data for compatibility
+        location: req.city, // Legacy field using city name
+        address: req.address, 
         city: req.city,
+        latitude: req.latitude,
+        longitude: req.longitude,
         urgency: req.urgency,
         contact_number: req.contact_number,
-        notes: req.notes,
+        alternate_contact: req.alternate_contact,
+        notes: req.notes || req.admin_notes, // Fallback to admin_notes if user notes empty
         status: req.status,
         required_date: req.required_date,
         created_at: req.created_at,
+        updated_at: req.updated_at,
         distance,
         requester: requester ? {
           id: requester._id.toString(),
