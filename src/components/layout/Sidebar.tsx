@@ -177,7 +177,7 @@ export function Sidebar() {
                   )}
 
                   {/* Icon */}
-                  <item.icon className={`relative z-10 shrink-0 ${collapsed ? 'h-6 w-6' : 'h-5 w-5'} ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                  <item.icon className={`relative z-10 shrink-0 ${collapsed ? 'h-[18px] w-[18px]' : 'h-5 w-5'} ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
                   
                   {/* Label */}
                   <AnimatePresence>
