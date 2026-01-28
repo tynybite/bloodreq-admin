@@ -50,9 +50,10 @@ const menuConfig = [
 
 interface SidebarProps {
   className?: string;
+  isMobile?: boolean;
 }
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className, isMobile = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { collapsed, setCollapsed } = useSidebar();
@@ -62,6 +63,9 @@ export function Sidebar({ className }: SidebarProps) {
   
   const { user } = useUser();
   const role = user?.role as AdminRole || 'admin'; 
+
+  // On mobile, sidebar is never collapsed
+  const isCollapsed = isMobile ? false : collapsed;
 
   const handleSignOut = async () => {
     await auth.signOut();
@@ -86,16 +90,18 @@ export function Sidebar({ className }: SidebarProps) {
   return (
     <motion.aside 
       initial={false}
-      animate={{ width: collapsed ? 80 : 280 }}
+      animate={isMobile ? undefined : { width: isCollapsed ? 80 : 280 }}
       transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen border-r border-border/40 bg-card/30 backdrop-blur-xl overflow-hidden hidden lg:block", 
+        "fixed left-0 top-0 z-40 h-screen border-r border-border/40 backdrop-blur-xl overflow-hidden", 
+        !isMobile && "hidden lg:block bg-card/30",
+        isMobile && "bg-card/95", /* Higher opacity for mobile */
         className
       )}
     >
       <div className="flex h-full flex-col py-6">
         {/* Logo & Collapse */}
-        <div className={`mb-8 flex items-center ${collapsed ? 'justify-center px-2' : 'justify-between px-6'}`}>
+        <div className={`mb-8 flex items-center ${isCollapsed ? 'justify-center px-2' : 'justify-between px-6'}`}>
           <Link href="/admin/dashboard" className="flex items-center gap-4 group">
             <motion.div 
               whileHover={{ scale: 1.05 }}
@@ -105,7 +111,7 @@ export function Sidebar({ className }: SidebarProps) {
               <img src="/favicon.ico" alt="BloodReq" className="h-6 w-6 object-contain brightness-0 invert" />
             </motion.div>
             <AnimatePresence>
-              {!collapsed && (
+              {!isCollapsed && (
                 <motion.div 
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -120,7 +126,7 @@ export function Sidebar({ className }: SidebarProps) {
           </Link>
           
           <AnimatePresence>
-            {!collapsed && (
+            {!isCollapsed && !isMobile && (
               <motion.button
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -137,7 +143,7 @@ export function Sidebar({ className }: SidebarProps) {
         </div>
 
         {/* Expand button when collapsed */}
-        {collapsed && (
+        {isCollapsed && !isMobile && (
           <div className="px-4 mb-4 flex justify-center">
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -160,7 +166,7 @@ export function Sidebar({ className }: SidebarProps) {
                   onHoverStart={() => setHoveredItem(item.href)}
                   onHoverEnd={() => setHoveredItem(null)}
                   className={`relative flex items-center py-3 rounded-xl transition-all duration-200 ${
-                    collapsed ? 'justify-center px-2' : 'px-4'
+                    isCollapsed ? 'justify-center px-2' : 'px-4'
                   } ${
                     isActive 
                       ? 'text-primary' 
@@ -186,11 +192,11 @@ export function Sidebar({ className }: SidebarProps) {
                   )}
 
                   {/* Icon */}
-                  <item.icon className={`relative z-10 shrink-0 ${collapsed ? 'h-[18px] w-[18px]' : 'h-5 w-5'} ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                  <item.icon className={`relative z-10 shrink-0 ${isCollapsed ? 'h-[18px] w-[18px]' : 'h-5 w-5'} ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
                   
                   {/* Label */}
                   <AnimatePresence>
-                    {!collapsed && (
+                    {!isCollapsed && (
                       <motion.span
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -203,7 +209,7 @@ export function Sidebar({ className }: SidebarProps) {
                   </AnimatePresence>
 
                   {/* Active Indicator Dot */}
-                  {isActive && collapsed && (
+                  {isActive && isCollapsed && (
                     <motion.div
                       layoutId="sidebar-dot"
                       className="absolute right-2 w-1.5 h-1.5 rounded-full bg-primary"
@@ -220,11 +226,11 @@ export function Sidebar({ className }: SidebarProps) {
           <button 
             onClick={handleSignOut}
             className={`flex w-full items-center rounded-xl p-3 transition-all hover:bg-rose-500/10 hover:text-rose-600 group ${
-              collapsed ? 'justify-center' : ''
+              isCollapsed ? 'justify-center' : ''
             }`}
           >
             <LogOut className="h-5 w-5 text-muted-foreground group-hover:text-rose-600 transition-colors" />
-            {!collapsed && (
+            {!isCollapsed && (
               <span className="ml-3 text-sm font-medium text-muted-foreground group-hover:text-rose-600 transition-colors">
                 {t('logout')}
               </span>
