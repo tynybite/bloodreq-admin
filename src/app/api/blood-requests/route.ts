@@ -18,6 +18,7 @@ const createBloodRequestSchema = z.object({
   contact_number: z.string().min(10, 'Valid contact number is required'),
   alternate_contact: z.string().optional(),
   notes: z.string().optional(),
+  required_date: z.string().optional(),
 });
 
 // GET /api/blood-requests - List blood requests with filtering
@@ -110,6 +111,7 @@ export async function GET(request: NextRequest) {
         contact_number: req.contact_number,
         notes: req.notes,
         status: req.status,
+        required_date: req.required_date,
         created_at: req.created_at,
         distance,
         requester: requester ? {
@@ -163,6 +165,11 @@ export async function POST(request: NextRequest) {
       alternate_contact: data.alternate_contact,
       notes: data.notes,
       status: 'pending',
+      location: {
+        type: 'Point',
+        coordinates: [data.longitude || 0, data.latitude || 0], // GeoJSON expects [lng, lat]
+      },
+      required_date: data.required_date ? new Date(data.required_date) : new Date(),
       created_at: new Date(),
       updated_at: new Date(),
     };

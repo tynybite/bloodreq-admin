@@ -67,8 +67,8 @@ const getStatusStyles = (status: string) => {
   switch (status) {
     case "pending": return "bg-amber-500/10 text-amber-500 border-amber-500/30";
     case "approved": return "bg-emerald-500/10 text-emerald-500 border-emerald-500/30";
-    case "in-progress": return "bg-blue-500/10 text-blue-500 border-blue-500/30";
-    case "completed": return "bg-violet-500/10 text-violet-500 border-violet-500/30";
+    case "in_progress": return "bg-blue-500/10 text-blue-500 border-blue-500/30";
+    case "fulfilled": return "bg-violet-500/10 text-violet-500 border-violet-500/30";
     case "cancelled": 
     case "rejected": return "bg-rose-500/10 text-rose-500 border-rose-500/30";
     default: return "bg-secondary text-foreground";
@@ -154,8 +154,10 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
     switch (status) {
       case 'pending': return t('pending');
       case 'approved': return t('approved');
-      case 'rejected': return t('rejected');
+      case 'in_progress': return 'In Progress';
       case 'fulfilled': return t('fulfilled');
+      case 'rejected': return t('rejected');
+      case 'cancelled': return 'Cancelled';
       default: return status;
     }
   };
@@ -259,8 +261,10 @@ export default function BloodRequestsClient({ initialRequests, stats }: { initia
               <SelectItem value="all">{tCommon('all')}</SelectItem>
               <SelectItem value="pending">{t('pending')}</SelectItem>
               <SelectItem value="approved">{t('approved')}</SelectItem>
-              <SelectItem value="in-progress">In Progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="fulfilled">Fulfilled</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
         </div>
