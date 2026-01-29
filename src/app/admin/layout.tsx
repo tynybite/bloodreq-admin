@@ -15,8 +15,8 @@ async function getAdminUser(): Promise<AdminUser | null> {
   try {
     const decodedToken = await getFirebaseAuth().verifySessionCookie(token, true);
     
-    // Fetch from users collection (where admin data lives)
-    const adminUsersCollection = await getCollection<AdminUserDocument>('users');
+    // Fetch from admin_users collection
+    const adminUsersCollection = await getCollection<AdminUserDocument>(Collections.ADMIN_USERS);
     const adminProfile = await adminUsersCollection.findOne({ _id: decodedToken.uid });
     
     if (adminProfile) {

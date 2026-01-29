@@ -35,25 +35,23 @@ export async function POST(request: NextRequest) {
     });
 
     // Check if user is an admin
-    // We now use the 'users' collection (consolidated)
-    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
-    const profile = await usersCollection.findOne({ _id: decodedToken.uid });
+    // We check the 'admin_users' collection for admin panel access
+    const adminUsersCollection = await getCollection<AdminUserDocument>(Collections.ADMIN_USERS);
+    const adminProfile = await adminUsersCollection.findOne({ _id: decodedToken.uid });
     
-    // Check if role is admin
-    const isAdmin = profile?.role === 'admin';
+    // Check if role is admin or super_admin
+    const isAdmin = adminProfile && (adminProfile.role === 'admin' || adminProfile.role === 'super_admin');
 
-    // Profile already fetched above
-
-    if (!profile) {
-      // User authenticated but no profile
+    if (!adminProfile) {
+      // User authenticated but no admin profile
       return successResponse(
         {
           id: decodedToken.uid,
           email: decodedToken.email,
           needs_profile: true,
-          is_admin: isAdmin,
+          is_admin: false,
         },
-        'User authenticated but profile not found. Complete signup.'
+        'User authenticated but not authorized as admin.'
       );
     }
 
@@ -61,17 +59,13 @@ export async function POST(request: NextRequest) {
     return successResponse({
       access_token: idToken,
       refresh_token: 'FIREBASE_MANAGED',
-      id: profile._id,
-      email: profile.email,
-      full_name: profile.full_name,
-      blood_group: profile.blood_group,
-      phone_number: profile.phone_number,
-      country: profile.country,
-      city: profile.city,
-      area: profile.area,
-      is_available_to_donate: profile.is_available_to_donate,
-      avatar_url: profile.avatar_url,
-      created_at: profile.created_at,
+      id: adminProfile._id,
+      email: decodedToken.email || "", // Admin profile might not have email stored directly if it's in auth
+      full_name: `Admin User`, // Valid fallback if not in doc
+      role: adminProfile.role,
+      permissions: adminProfile.permissions,
+      is_active: adminProfile.is_active,
+      created_at: adminProfile.created_at,
       need_profile: false,
       is_admin: isAdmin,
     }, 'Signed in successfully');

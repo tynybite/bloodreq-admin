@@ -42,7 +42,7 @@ export async function getFinancialDonations() {
   const fundraisersCollection = await getCollection<FundraiserDocument>(Collections.FUNDRAISERS);
   
   // Get donations that have fundraiser_id (financial donations to fundraisers)
-  const donationsRaw = await donationsCollection.find({})
+  const donationsRaw = await donationsCollection.find({ fundraiser_id: { $exists: true } })
     .sort({ created_at: -1 })
     .toArray();
 

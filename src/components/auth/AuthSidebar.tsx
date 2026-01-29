@@ -19,10 +19,33 @@ const quotes = [
   },
 ];
 
+interface BlobConfig {
+  width: number;
+  height: number;
+  left: string;
+  top: string;
+  x: number[];
+  y: number[];
+  duration: number;
+}
+
 export default function AuthSidebar() {
   const [currentQuote, setCurrentQuote] = useState(0);
+  const [blobs, setBlobs] = useState<BlobConfig[]>([]);
 
   useEffect(() => {
+    // Generate random blobs on client side only to prevent hydration mismatch
+    const newBlobs = [...Array(5)].map(() => ({
+      width: Math.random() * 300 + 100,
+      height: Math.random() * 300 + 100,
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      x: [0, Math.random() * 100 - 50, 0],
+      y: [0, Math.random() * 100 - 50, 0],
+      duration: Math.random() * 20 + 20,
+    }));
+    setBlobs(newBlobs);
+
     const timer = setInterval(() => {
       setCurrentQuote((prev) => (prev + 1) % quotes.length);
     }, 6000);
@@ -37,23 +60,23 @@ export default function AuthSidebar() {
       
       {/* 2. ORGANIC DRIFT: Floating Blood Cells (SVGs) */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        {[...Array(5)].map((_, i) => (
+        {blobs.map((blob, i) => (
           <motion.div
             key={i}
             className="absolute rounded-full bg-gradient-to-br from-red-600/20 to-transparent blur-2xl"
             style={{
-              width: Math.random() * 300 + 100,
-              height: Math.random() * 300 + 100,
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              width: blob.width,
+              height: blob.height,
+              left: blob.left,
+              top: blob.top,
             }}
             animate={{
-              x: [0, Math.random() * 100 - 50, 0],
-              y: [0, Math.random() * 100 - 50, 0],
+              x: blob.x,
+              y: blob.y,
               scale: [1, 1.2, 1],
             }}
             transition={{
-              duration: Math.random() * 20 + 20,
+              duration: blob.duration,
               repeat: Infinity,
               ease: "linear"
             }}

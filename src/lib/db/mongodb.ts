@@ -83,7 +83,7 @@ export interface UserDocument extends Document {
   _id: string; // Firebase UID
   email?: string;
   full_name?: string;
-  role?: string;
+  role?: 'user' | 'admin'; // 'user' is the unified role for mobile app users
   blood_group?: string;
   phone_number?: string;
   country?: string;

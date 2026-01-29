@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const pendingCollection = await getCollection('pending_registrations' as any);
     await pendingCollection.updateOne(
         { email: data.email }, 
-        { $set: { ...data, created_at: new Date() } }, 
+        { $set: { ...data, role: 'user', is_available_to_donate: true, created_at: new Date() } }, 
         { upsert: true }
     );
 
