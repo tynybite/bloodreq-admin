@@ -12,7 +12,7 @@ export default async function Dashboard() {
   const totalDonations = await donationsCollection.countDocuments({});
   const pendingRequests = await requestsCollection.countDocuments({ status: 'pending' });
   const activeDonors = await usersCollection.countDocuments({ 
-    $or: [{ role: 'donor' }, { is_available_to_donate: true }] 
+    $or: [{ role: 'donor' as any }, { is_available_to_donate: true }] 
   }); 
   const pendingDonations = await donationsCollection.countDocuments({ status: { $in: ['offered', 'accepted'] } });
 

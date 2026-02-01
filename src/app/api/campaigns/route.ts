@@ -2,6 +2,17 @@ import { NextRequest } from 'next/server';
 import { getCollection, Collections, CampaignDocument } from '@/lib/db/mongodb';
 import { successResponse, errorResponse } from '@/lib/api-utils';
 
+// Helper to ensure banner URLs are absolute
+const getAbsoluteUrl = (url: string | undefined) => {
+  if (!url) return url;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url; // Already absolute
+  }
+  // Prepend the app URL for relative paths
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+  return `${baseUrl}${url}`;
+};
+
 // GET /api/campaigns - Public endpoint for mobile app
 export async function GET(request: NextRequest) {
   try {
@@ -47,10 +58,15 @@ export async function GET(request: NextRequest) {
         title: c.title,
         description: c.description,
         type: c.type,
-        banners: c.banners,
+        banners: c.banners?.map(b => ({
+          ...b,
+          url: getAbsoluteUrl(b.url)
+        })),
         sponsor: {
           name: c.sponsor.name,
-          logo_url: c.sponsor.logo_url
+          logo_url: getAbsoluteUrl(c.sponsor.logo_url),
+          country_code: c.sponsor.country_code,
+          contact_phone: c.sponsor.contact_phone
         },
         action: c.action,
         start_date: c.start_date,
