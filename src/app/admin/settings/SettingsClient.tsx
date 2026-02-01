@@ -126,12 +126,18 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
       facebookAppId: ""
   });
 
-  // Apply theme changes immediately
+  // Sync appearance.theme with external theme changes (e.g., from Header)
   useEffect(() => {
-    if (appearance.theme && appearance.theme !== currentTheme) {
-      setTheme(appearance.theme);
+    if (currentTheme && currentTheme !== appearance.theme) {
+      setAppearance((prev: { theme: string; primaryColor: string; enableAnimations: boolean }) => ({ ...prev, theme: currentTheme }));
     }
-  }, [appearance.theme, currentTheme, setTheme]);
+  }, [currentTheme]);
+
+  // Apply local theme changes to the system
+  const handleThemeChange = (newTheme: string) => {
+    setAppearance({ ...appearance, theme: newTheme });
+    setTheme(newTheme);
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -195,7 +201,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
             <Input 
                 value={general.platformName} 
                 onChange={(e) => setGeneral({...general, platformName: e.target.value})}
-                className="rounded-xl bg-secondary/50" 
+                className="rounded-xl bg-secondary/50 dark:bg-secondary/30 dark:text-foreground" 
             />
           </div>
           <div className="space-y-2">
@@ -204,13 +210,13 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
                 value={general.supportEmail}
                 onChange={(e) => setGeneral({...general, supportEmail: e.target.value})}
                 type="email" 
-                className="rounded-xl bg-secondary/50" 
+                className="rounded-xl bg-secondary/50 dark:bg-secondary/30 dark:text-foreground" 
             />
           </div>
           <div className="space-y-2">
               <Label>{t('general.timezone')}</Label>
               <Select value={general.timezone} onValueChange={(v) => setGeneral({...general, timezone: v})}>
-                <SelectTrigger className="rounded-xl bg-secondary/50">
+                <SelectTrigger className="rounded-xl bg-secondary/50 dark:bg-secondary/30 dark:text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -235,7 +241,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
           <div className="space-y-2">
             <Label>{t('currency.language')}</Label>
             <Select value={locale} onValueChange={(v: any) => setLocale(v)}>
-              <SelectTrigger className="rounded-xl bg-secondary/50">
+              <SelectTrigger className="rounded-xl bg-secondary/50 dark:bg-secondary/30 dark:text-foreground">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -252,7 +258,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
           <div className="space-y-2">
             <Label>{t('currency.currency')}</Label>
             <Select value={currency} onValueChange={(v: any) => setCurrency(v)}>
-              <SelectTrigger className="rounded-xl bg-secondary/50">
+              <SelectTrigger className="rounded-xl bg-secondary/50 dark:bg-secondary/30 dark:text-foreground">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -318,7 +324,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
                 type="number" 
                 value={notifications.radius} 
                 onChange={(e) => setNotifications({...notifications, radius: e.target.value})}
-                className="rounded-xl bg-secondary/50 w-24" 
+                className="rounded-xl bg-secondary/50 dark:bg-secondary/30 dark:text-foreground w-24" 
               />
               <span className="text-muted-foreground">km</span>
             </div>
@@ -359,7 +365,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
                 type="number" 
                 value={security.sessionTimeout} 
                 onChange={(e) => setSecurity({...security, sessionTimeout: e.target.value})}
-                className="rounded-xl bg-secondary/50 w-24" 
+                className="rounded-xl bg-secondary/50 dark:bg-secondary/30 dark:text-foreground w-24" 
               />
               <span className="text-muted-foreground">minutes</span>
             </div>
@@ -375,8 +381,8 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
         >
           <div className="space-y-2">
             <Label>{t('appearance.theme')}</Label>
-            <Select value={appearance.theme} onValueChange={(v) => setAppearance({...appearance, theme: v})}>
-              <SelectTrigger className="rounded-xl bg-secondary/50">
+            <Select value={appearance.theme} onValueChange={handleThemeChange}>
+              <SelectTrigger className="rounded-xl bg-secondary/50 dark:bg-secondary/30 dark:text-foreground">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -397,7 +403,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
                 type="text" 
                 value={appearance.primaryColor} 
                 onChange={(e) => setAppearance({...appearance, primaryColor: e.target.value})}
-                className="rounded-xl bg-secondary/50 flex-1 font-mono" 
+                className="rounded-xl bg-secondary/50 dark:bg-secondary/30 dark:text-foreground flex-1 font-mono" 
               />
             </div>
           </div>
@@ -428,7 +434,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
                 value={apiKeys.mongodbUri} 
                 onChange={(e) => setApiKeys({...apiKeys, mongodbUri: e.target.value})}
                 placeholder="mongodb+srv://..." 
-                className="rounded-xl bg-secondary/50" 
+                className="rounded-xl bg-secondary/50 dark:bg-secondary/30 dark:text-foreground" 
             />
           </div>
           <div className="space-y-2">
@@ -439,7 +445,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
                 value={apiKeys.firebaseProjectId} 
                 onChange={(e) => setApiKeys({...apiKeys, firebaseProjectId: e.target.value})}
                 placeholder="my-project-id" 
-                className="rounded-xl bg-secondary/50 pr-10" 
+                className="rounded-xl bg-secondary/50 dark:bg-secondary/30 dark:text-foreground pr-10" 
               />
               <Button
                 variant="ghost"
@@ -457,7 +463,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
                 value={apiKeys.admobAppId} 
                 onChange={(e) => setApiKeys({...apiKeys, admobAppId: e.target.value})}
                 placeholder="ca-app-pub-XXXXXXXXXXXXXXXX" 
-                className="rounded-xl bg-secondary/50" 
+                className="rounded-xl bg-secondary/50 dark:bg-secondary/30 dark:text-foreground" 
             />
           </div>
           <div className="space-y-2">
@@ -466,7 +472,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
                 value={apiKeys.facebookAppId} 
                 onChange={(e) => setApiKeys({...apiKeys, facebookAppId: e.target.value})}
                 placeholder="Enter Facebook App ID" 
-                className="rounded-xl bg-secondary/50" 
+                className="rounded-xl bg-secondary/50 dark:bg-secondary/30 dark:text-foreground" 
             />
           </div>
         </div>

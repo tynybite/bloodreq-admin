@@ -23,9 +23,14 @@ async function getAdminUser(): Promise<AdminUser | null> {
       // Prioritize admin_details.role over top-level role
       const effectiveRole = userProfile.admin_details?.role || userProfile.role || 'user';
       
+      // Use Firebase email if DB email looks like a placeholder (e.g., admin-UID@bloodreq.app)
+      const displayEmail = userProfile.email?.includes('admin-') && userProfile.email?.endsWith('@bloodreq.app')
+        ? decodedToken.email
+        : userProfile.email || decodedToken.email;
+      
       return {
           id: userProfile._id,
-          email: userProfile.email,
+          email: displayEmail,
           full_name: userProfile.full_name,
           avatar_url: userProfile.avatar_url,
           role: effectiveRole, 
