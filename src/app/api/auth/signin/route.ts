@@ -1,6 +1,6 @@
 // POST /api/auth/signin - Exchange Firebase token for Session Cookie
 import { NextRequest, NextResponse } from 'next/server';
-import { getCollection, Collections, UserDocument, AdminUserDocument } from '@/lib/db/mongodb';
+import { getCollection, Collections, UserDocument } from '@/lib/db/mongodb';
 import { successResponse, errorResponse } from '@/lib/api-utils';
 import { getFirebaseAuth } from '@/lib/auth/firebase-admin';
 import { cookies } from 'next/headers';
@@ -35,14 +35,15 @@ export async function POST(request: NextRequest) {
     });
 
     // Check if user is an admin
-    // We check the 'admin_users' collection for admin panel access
-    const adminUsersCollection = await getCollection<AdminUserDocument>(Collections.ADMIN_USERS);
-    const adminProfile = await adminUsersCollection.findOne({ _id: decodedToken.uid });
+    // We check the 'users' collection with admin_details for admin panel access
+    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
+    const userProfile = await usersCollection.findOne({ _id: decodedToken.uid });
     
-    // Check if role is admin or super_admin
-    const isAdmin = adminProfile && (adminProfile.role === 'admin' || adminProfile.role === 'super_admin');
+    // Check if role is admin or super_admin (in admin_details or top-level role)
+    const role = userProfile?.admin_details?.role || userProfile?.role;
+    const isAdmin = role === 'admin' || role === 'super_admin' || role === 'moderator';
 
-    if (!adminProfile) {
+    if (!userProfile || !isAdmin) {
       // User authenticated but no admin profile
       return successResponse(
         {
@@ -59,13 +60,13 @@ export async function POST(request: NextRequest) {
     return successResponse({
       access_token: idToken,
       refresh_token: 'FIREBASE_MANAGED',
-      id: adminProfile._id,
-      email: decodedToken.email || "", // Admin profile might not have email stored directly if it's in auth
-      full_name: `Admin User`, // Valid fallback if not in doc
-      role: adminProfile.role,
-      permissions: adminProfile.permissions,
-      is_active: adminProfile.is_active,
-      created_at: adminProfile.created_at,
+      id: userProfile._id,
+      email: decodedToken.email || userProfile.email || "",
+      full_name: userProfile.full_name || 'Admin User',
+      role: role,
+      permissions: userProfile.admin_details?.permissions,
+      is_active: userProfile.admin_details?.is_active ?? true,
+      created_at: userProfile.created_at,
       need_profile: false,
       is_admin: isAdmin,
     }, 'Signed in successfully');

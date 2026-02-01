@@ -2,15 +2,37 @@ import { NextRequest } from 'next/server';
 import { successResponse, errorResponse, getAuthUser } from '@/lib/api-utils';
 
 // Fundraisers - TODO: Migrate to MongoDB when needed
+// GET /api/fundraisers - Fetch active/approved fundraisers
 export async function GET(request: NextRequest) {
-  const { user, error: authError } = await getAuthUser(request);
-  if (authError) return authError;
+  try {
+    const { user, error: authError } = await getAuthUser(request);
+    if (authError) return authError;
 
-  // Return empty list for now - to be migrated when fundraisers feature is needed
-  return successResponse({
-    fundraisers: [],
-    pagination: { page: 1, limit: 20, total: 0, total_pages: 0 },
-  });
+    const collection = await getCollection(Collections.FUNDRAISERS);
+    
+    // Fetch only 'approved' fundraisers
+    // Sort by creation date descending (newest first)
+    const fundraisers = await collection
+      .find({ status: 'approved' })
+      .sort({ created_at: -1 })
+      .limit(20)
+      .toArray();
+
+    // Map _id to id string
+    const mappedFundraisers = fundraisers.map(f => ({
+      ...f,
+      id: f._id.toString(),
+      _id: undefined
+    }));
+
+    return successResponse({
+      fundraisers: mappedFundraisers,
+      count: mappedFundraisers.length
+    });
+  } catch (error) {
+    console.error('Error fetching fundraisers:', error);
+    return errorResponse('Failed to fetch fundraisers', 'SERVER_ERROR', 500);
+  }
 }
 
 // Schema for creating a fundraiser

@@ -1,7 +1,7 @@
 import { getModerators } from './actions';
 import ModeratorsClient from './ModeratorsClient';
 import { getFirebaseAuth } from '@/lib/auth/firebase-admin';
-import { getCollection, Collections } from '@/lib/db/mongodb';
+import { getCollection, Collections, UserDocument } from '@/lib/db/mongodb';
 import { cookies } from 'next/headers';
 
 // Helper to get current user from session cookie or token
@@ -27,14 +27,11 @@ export default async function ModeratorsPage() {
   
   if (user) {
     try {
-      const adminUsersCollection = await getCollection('admin_users');
-      const adminUser = await adminUsersCollection.findOne({ uid: user.uid });
-      
-      console.log('Current user role lookup:', { userId: user.uid, adminUser });
+      const usersCollection = await getCollection<UserDocument>(Collections.USERS);
+      const adminUser = await usersCollection.findOne({ _id: user.uid });
       
       if (adminUser) {
-        // @ts-ignore
-        currentUserRole = adminUser.role;
+        currentUserRole = adminUser.admin_details?.role || adminUser.role || 'support';
       }
     } catch (error) {
       console.error('Error fetching admin role:', error);

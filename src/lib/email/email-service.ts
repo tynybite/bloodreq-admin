@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { getCollection, Collections, AdminUserDocument } from '@/lib/db/mongodb';
+import { getCollection, Collections } from '@/lib/db/mongodb';
 
 export interface EmailOptions {
   to: string;

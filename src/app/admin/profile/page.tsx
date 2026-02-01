@@ -1,4 +1,4 @@
-import { getCollection, Collections, AdminUserDocument, UserDocument } from "@/lib/db/mongodb";
+import { getCollection, Collections, UserDocument } from "@/lib/db/mongodb";
 import { getFirebaseAuth } from "@/lib/auth/firebase-admin";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -19,31 +19,24 @@ export default async function ProfilePage() {
     redirect('/login');
   }
   
-  const adminUsersCollection = await getCollection<AdminUserDocument>('admin_users');
   const usersCollection = await getCollection<UserDocument>(Collections.USERS);
+  const userProfile = await usersCollection.findOne({ _id: user.uid });
   
-  const [adminUser, userProfile] = await Promise.all([
-    adminUsersCollection.findOne({ _id: user.uid }),
-    usersCollection.findOne({ _id: user.uid })
-  ]);
-  
-  // Format for client
-  // We prioritize adminUser data if it exists, but usually profile data is in users collection
+  // Format for client - all data now in users collection
   const profileData = {
     id: user.uid,
-    email: user.email || null,
+    email: user.email || userProfile?.email || null,
     full_name: userProfile?.full_name || null,
     avatar_url: userProfile?.avatar_url || null,
     phone_number: userProfile?.phone_number || null,
     city: userProfile?.city || null,
     country: userProfile?.country || null,
-    role: userProfile?.blood_group || null, // Mapping blood_group to role used in profile client display if that's what it was? Or maybe previously 'role' was 'donor'/'admin'
-    // Actually looking at ProfileClient, role seems to be 'Detailed Role'
+    role: userProfile?.blood_group || null, // Displayed as "Detailed Role" in UI
     
-    // Admin specific
-    admin_role: adminUser?.role || null,
-    permissions: adminUser?.permissions || {},
-    created_at: (adminUser?.created_at || userProfile?.created_at || new Date()).toISOString(),
+    // Admin specific (from admin_details)
+    admin_role: userProfile?.admin_details?.role || userProfile?.role || null,
+    permissions: userProfile?.admin_details?.permissions || {},
+    created_at: (userProfile?.created_at || new Date()).toISOString(),
   };
 
   return <ProfileClient initialProfile={profileData} />;

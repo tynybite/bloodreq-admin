@@ -63,7 +63,6 @@ export const Collections = {
   DONATIONS: "donations",
   FUNDRAISERS: "fundraisers",
   NOTIFICATIONS: "notifications",
-  ADMIN_USERS: "admin_users",
   SYSTEM_SETTINGS: "system_settings",
   LOCATIONS: "locations",
   CAMPAIGNS: "campaigns",
@@ -203,20 +202,7 @@ export interface NotificationDocument extends Document {
   created_at: Date;
 }
 
-export interface AdminUserDocument extends Document {
-  _id: string; // Firebase UID
-  role: string;
-  permissions: any;
-  assigned_countries: string[];
-  assigned_cities: string[];
-  is_active: boolean;
-  created_at: Date;
-  updated_at?: Date;
-  settings?: {
-    smtp?: any;
-    [key: string]: any;
-  };
-}
+// DEPRECATED: AdminUserDocument removed - use UserDocument with admin_details instead
 
 export interface FundraiserDocument extends Document {
   _id?: ObjectId;

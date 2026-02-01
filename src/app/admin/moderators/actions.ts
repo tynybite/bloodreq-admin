@@ -1,6 +1,6 @@
 'use server';
 
-import { getCollection, Collections, ObjectId, AdminUserDocument, UserDocument } from "@/lib/db/mongodb";
+import { getCollection, Collections, ObjectId, UserDocument } from "@/lib/db/mongodb";
 import { getFirebaseAuth } from "@/lib/auth/firebase-admin";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
@@ -27,34 +27,32 @@ export type Moderator = {
 
 export async function getModerators() {
   try {
-    const adminUsersCollection = await getCollection<AdminUserDocument>('admin_users');
     const usersCollection = await getCollection<UserDocument>(Collections.USERS);
 
-    const adminUsers = await adminUsersCollection.find({}).sort({ created_at: -1 }).toArray();
+    // Find users with admin_details (i.e., admins/moderators)
+    const adminUsers = await usersCollection
+      .find({ 'admin_details.role': { $exists: true } })
+      .sort({ created_at: -1 })
+      .toArray();
 
-    // Fetch profiles
-    const moderators = await Promise.all(adminUsers.map(async (admin) => {
-      const profile = await usersCollection.findOne({ _id: admin._id }); // admin._id matches user uid (string)
-      
-      return {
-        id: admin._id,
-        role: admin.role,
-        permissions: admin.permissions || {},
-        assigned_countries: admin.assigned_countries || [],
-        assigned_cities: admin.assigned_cities || [],
-        is_active: admin.is_active,
-        created_at: admin.created_at,
-        profile: profile ? {
-          full_name: profile.full_name || 'Unknown', // Fallback
-          email: profile.email,
-          avatar_url: profile.avatar_url || null,
-          phone_number: profile.phone_number || null,
-          blood_group: profile.blood_group,
-          country: profile.country,
-          city: profile.city,
-          address: profile.area, // Mapping area to address
-        } : undefined
-      };
+    const moderators = adminUsers.map((user) => ({
+      id: user._id,
+      role: user.admin_details?.role || user.role || 'user',
+      permissions: user.admin_details?.permissions || {},
+      assigned_countries: user.admin_details?.assigned_countries || [],
+      assigned_cities: user.admin_details?.assigned_cities || [],
+      is_active: user.admin_details?.is_active ?? true,
+      created_at: user.created_at,
+      profile: {
+        full_name: user.full_name || 'Unknown',
+        email: user.email,
+        avatar_url: user.avatar_url || null,
+        phone_number: user.phone_number || null,
+        blood_group: user.blood_group,
+        country: user.country,
+        city: user.city,
+        address: user.area,
+      }
     }));
 
     return moderators;
@@ -65,11 +63,11 @@ export async function getModerators() {
 }
 
 export async function toggleModeratorStatus(id: string, isActive: boolean) {
-  const adminUsersCollection = await getCollection<AdminUserDocument>('admin_users');
+  const usersCollection = await getCollection<UserDocument>(Collections.USERS);
   
-  await adminUsersCollection.updateOne(
-    { _id: id as unknown as string }, // explicit string cast if needed, but AdminUserDocument defines _id as string
-    { $set: { is_active: isActive } }
+  await usersCollection.updateOne(
+    { _id: id },
+    { $set: { 'admin_details.is_active': isActive, updated_at: new Date() } }
   );
 
   revalidatePath('/admin/moderators');
@@ -97,24 +95,35 @@ export async function inviteModerator(email: string, role: string, countries: st
       }
     }
 
-    // Add to admin_users collection
-    const adminUsersCollection = await getCollection<AdminUserDocument>('admin_users');
+    // Add/update admin_details in users collection
+    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
     
-    // Check if already exists to avoid overwriting
-    const existing = await adminUsersCollection.findOne({ _id: uid });
+    // Check if already an admin
+    const existing = await usersCollection.findOne({ _id: uid, 'admin_details.role': { $exists: true } });
     if (existing) {
        return { success: false, message: "User is already a moderator/admin." };
     }
 
-    await adminUsersCollection.insertOne({
-      _id: uid,
-      role: role,
-      assigned_countries: countries,
-      assigned_cities: [],
-      permissions: {},
-      is_active: true,
-      created_at: new Date()
-    });
+    await usersCollection.updateOne(
+      { _id: uid },
+      { 
+        $set: { 
+          email: email,
+          admin_details: {
+            role: role,
+            assigned_countries: countries,
+            assigned_cities: [],
+            permissions: {},
+            is_active: true,
+          },
+          updated_at: new Date()
+        },
+        $setOnInsert: {
+          created_at: new Date()
+        }
+      },
+      { upsert: true }
+    );
 
     revalidatePath('/admin/moderators');
     return { success: true };
@@ -175,14 +184,14 @@ export async function updateModerator(
     return { success: false, message: 'Unauthorized' };
   }
 
-  const adminUsersCollection = await getCollection<AdminUserDocument>('admin_users');
-  const adminUser = await adminUsersCollection.findOne({ _id: currentUser.uid });
+  const usersCollection = await getCollection<UserDocument>(Collections.USERS);
+  const adminUser = await usersCollection.findOne({ _id: currentUser.uid });
   
-  if (!adminUser) {
+  if (!adminUser || !adminUser.admin_details) {
     return { success: false, message: 'Failed to verify your permissions' };
   }
 
-  const currentUserLevel = ROLE_HIERARCHY[adminUser.role] ?? 0;
+  const currentUserLevel = ROLE_HIERARCHY[adminUser.admin_details.role || ''] ?? 0;
 
   // Only super_admin and admin can change roles
   if (currentUserLevel < ROLE_HIERARCHY['admin']) {
@@ -190,60 +199,46 @@ export async function updateModerator(
   }
 
   // Get target moderator's current role
-  const targetMod = await adminUsersCollection.findOne({ _id: moderatorId });
+  const targetMod = await usersCollection.findOne({ _id: moderatorId });
 
-  if (!targetMod) {
+  if (!targetMod || !targetMod.admin_details) {
     return { success: false, message: 'Moderator not found' };
   }
 
-  const targetLevel = ROLE_HIERARCHY[targetMod.role] ?? 0;
+  const targetLevel = ROLE_HIERARCHY[targetMod.admin_details.role || ''] ?? 0;
 
   // Can't edit someone with equal or higher role (unless super_admin)
-  if (currentUserLevel <= targetLevel && adminUser.role !== 'super_admin') {
+  if (currentUserLevel <= targetLevel && adminUser.admin_details.role !== 'super_admin') {
     return { success: false, message: 'Cannot edit a user with equal or higher role' };
   }
 
   // If changing role, check the new role is below current user's level
   if (data.role) {
     const newRoleLevel = ROLE_HIERARCHY[data.role] ?? 0;
-    if (newRoleLevel >= currentUserLevel && adminUser.role !== 'super_admin') {
+    if (newRoleLevel >= currentUserLevel && adminUser.admin_details.role !== 'super_admin') {
       return { success: false, message: 'Cannot assign a role equal to or higher than your own' };
     }
   }
 
-  // Update admin_users collection
-  const updateFields: any = {};
-  if (data.role) updateFields.role = data.role;
-  if (data.assigned_countries) updateFields.assigned_countries = data.assigned_countries;
-  if (data.assigned_cities) updateFields.assigned_cities = data.assigned_cities;
+  // Update user document
+  const updateFields: any = { updated_at: new Date() };
+  
+  if (data.role) updateFields['admin_details.role'] = data.role;
+  if (data.assigned_countries) updateFields['admin_details.assigned_countries'] = data.assigned_countries;
+  if (data.assigned_cities) updateFields['admin_details.assigned_cities'] = data.assigned_cities;
+  
+  // Profile fields
+  if (data.profile?.full_name) updateFields.full_name = data.profile.full_name;
+  if (data.profile?.phone_number !== undefined) updateFields.phone_number = data.profile.phone_number;
+  if (data.profile?.blood_group !== undefined) updateFields.blood_group = data.profile.blood_group;
+  if (data.profile?.country !== undefined) updateFields.country = data.profile.country;
+  if (data.profile?.city !== undefined) updateFields.city = data.profile.city;
+  if (data.profile?.address !== undefined) updateFields.area = data.profile.address;
 
-  if (Object.keys(updateFields).length > 0) {
-    updateFields.updated_at = new Date();
-    await adminUsersCollection.updateOne(
-      { _id: moderatorId },
-      { $set: updateFields }
-    );
-  }
-
-  // Update profiles collection if profile data provided
-  if (data.profile) {
-    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
-    const profileUpdate: any = {};
-    if (data.profile.full_name) profileUpdate.full_name = data.profile.full_name;
-    if (data.profile.phone_number !== undefined) profileUpdate.phone_number = data.profile.phone_number;
-    if (data.profile.blood_group !== undefined) profileUpdate.blood_group = data.profile.blood_group;
-    if (data.profile.country !== undefined) profileUpdate.country = data.profile.country;
-    if (data.profile.city !== undefined) profileUpdate.city = data.profile.city;
-    if (data.profile.address !== undefined) profileUpdate.area = data.profile.address;
-
-    if (Object.keys(profileUpdate).length > 0) {
-      profileUpdate.updated_at = new Date();
-      await usersCollection.updateOne(
-        { _id: moderatorId },
-        { $set: profileUpdate }
-      );
-    }
-  }
+  await usersCollection.updateOne(
+    { _id: moderatorId },
+    { $set: updateFields }
+  );
 
   revalidatePath('/admin/moderators');
   return { success: true };

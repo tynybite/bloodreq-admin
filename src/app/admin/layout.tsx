@@ -2,7 +2,7 @@ import { AdminLayoutClient } from "@/components/layout/AdminLayoutClient";
 import "../globals.css";
 import { cookies } from "next/headers";
 import { getFirebaseAuth } from "@/lib/auth/firebase-admin";
-import { getCollection, Collections, AdminUserDocument } from "@/lib/db/mongodb";
+import { getCollection, Collections, UserDocument } from "@/lib/db/mongodb";
 import { redirect } from "next/navigation";
 import { AdminUser } from "@/contexts/UserContext";
 
@@ -15,30 +15,28 @@ async function getAdminUser(): Promise<AdminUser | null> {
   try {
     const decodedToken = await getFirebaseAuth().verifySessionCookie(token, true);
     
-    // Fetch from admin_users collection
-    const adminUsersCollection = await getCollection<AdminUserDocument>(Collections.ADMIN_USERS);
-    const adminProfile = await adminUsersCollection.findOne({ _id: decodedToken.uid });
+    // Fetch from users collection (consolidated)
+    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
+    const userProfile = await usersCollection.findOne({ _id: decodedToken.uid });
     
-    if (adminProfile) {
-      // Prioritize admin_details.role (e.g. 'super_admin') over top-level role
-      const effectiveRole = adminProfile.admin_details?.role || adminProfile.role || 'admin';
+    if (userProfile) {
+      // Prioritize admin_details.role over top-level role
+      const effectiveRole = userProfile.admin_details?.role || userProfile.role || 'user';
       
       return {
-          id: adminProfile._id,
-          email: adminProfile.email,
-          full_name: adminProfile.full_name,
-          avatar_url: adminProfile.avatar_url,
+          id: userProfile._id,
+          email: userProfile.email,
+          full_name: userProfile.full_name,
+          avatar_url: userProfile.avatar_url,
           role: effectiveRole, 
       };
     }
     
-    // Fallback? If not in admin_users, maybe they are just a user? 
-    // But this is admin panel. Redirect or return null?
-    // Let's assume for now valid admin session means they exist.
+    // User exists in Firebase but not in DB yet
     return {
         id: decodedToken.uid,
         email: decodedToken.email,
-        role: 'admin', // Fallback
+        role: 'user', // Default, will be blocked by RBAC check
     };
 
   } catch (e) {

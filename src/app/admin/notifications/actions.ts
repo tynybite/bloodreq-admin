@@ -1,6 +1,6 @@
 'use server';
 
-import { getCollection, Collections, NotificationLogDocument, UserDocument, AdminUserDocument } from '@/lib/db/mongodb';
+import { getCollection, Collections, NotificationLogDocument, UserDocument } from '@/lib/db/mongodb';
 import { getFirebaseAuth } from '@/lib/auth/firebase-admin';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
@@ -41,22 +41,20 @@ export async function sendAdminNotification(data: NotificationFormData) {
     throw new Error('Unauthorized');
   }
 
-  // Security Audit: Check Role (fetch from DB to be sure, or rely on claim if custom claims used)
-  // Ideally, we fetch the role here. For now, let's assume getAuthUser needs to return role or we fetch it.
-  // Since getAuthUser (lines 20-30) returns a DecodedIdToken, let's verify if it has custom claims.
-  // Firebase Admin SDK verifySessionCookie returns DecodedIdToken.
+  // Check role from users collection with admin_details
+  const usersCollection = await getCollection<UserDocument>(Collections.USERS);
+  const userProfile = await usersCollection.findOne({ _id: user.uid });
+  const role = userProfile?.admin_details?.role || userProfile?.role || 'user';
   
-  // NOTE: Ideally we check the DB here for the role.
-  // But given I don't want to over-complicate the action with DB fetches right now, 
-  // and the Layout protects the UI, this is a secondary layer.
-  // Actually, let's do it properly.
-  
-  const adminUsersCollection = await getCollection<AdminUserDocument>('users');
-  const adminProfile = await adminUsersCollection.findOne({ _id: user.uid });
-  const role = adminProfile?.admin_details?.role || adminProfile?.role || 'user';
-  
+  console.log('--- Debug Notification Permissions ---');
+  console.log('User UID:', user.uid);
+  console.log('User Profile Found:', !!userProfile);
+  console.log('Role resolved:', role);
+  console.log('Full Profile:', JSON.stringify(userProfile, null, 2));
+  console.log('-------------------------------------');
+
   if (!['admin', 'super_admin', 'moderator'].includes(role)) {
-    throw new Error('Forbidden: Insufficient permissions');
+    throw new Error(`Forbidden: Insufficient permissions (Role: ${role})`);
   }
 
   let result;

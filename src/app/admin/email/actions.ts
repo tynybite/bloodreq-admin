@@ -1,6 +1,6 @@
 'use server';
 
-import { getCollection, Collections, AdminUserDocument, UserDocument } from '@/lib/db/mongodb';
+import { getCollection, Collections, UserDocument } from '@/lib/db/mongodb';
 import { getFirebaseAuth } from '@/lib/auth/firebase-admin';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
