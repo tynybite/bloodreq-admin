@@ -58,7 +58,13 @@
     "bloodTypeDistribution": "ব্লাড গ্রুপ বিতরণ",
     "downloadReport": "রিপোর্ট ডাউনলোড",
     "manageRequests": "অনুরোধ পরিচালনা",
-    "viewCritical": "জরুরী অনুরোধ দেখুন"
+    "viewCritical": "জরুরী অনুরোধ দেখুন",
+    "overview": "সারাংশ",
+    "analytics": "বিশ্লেষণ",
+    "reports": "রিপোর্ট",
+    "pendingVerifications": "যাচাই অপেক্ষমাণ",
+    "urgentRequests": "জরুরী অনুরোধ",
+    "newFundraisers": "নতুন ফান্ডরেইজার"
   },
   "bloodRequests": {
     "title": "রক্তের অনুরোধ",

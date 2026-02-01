@@ -15,10 +15,13 @@ import {
   Download,
   CheckCircle2,
   Loader2,
+  X,
+  Save,
 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +30,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -34,6 +56,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import CountUp from "@/components/reactbits/CountUp";
+import { addCountry, updateCountry, deleteCountry, addCity, deleteCity } from './actions';
+import { toast } from "sonner";
+import { useRouter } from 'next/navigation';
+
+// Helper to convert country code to emoji flag
+const getCountryFlagEmoji = (countryCode: string) => {
+  if (!countryCode || countryCode.length !== 2) return '🌍';
+  const codePoints = countryCode
+    .toUpperCase()
+    .split('')
+    .map(char => 127397 + char.charCodeAt(0));
+  return String.fromCodePoint(...codePoints);
+};
 
 // Animation variants
 const containerVariants = {
@@ -47,60 +82,201 @@ const itemVariants = {
 };
 
 export default function LocationsPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'countries' | 'cities' | 'areas'>('countries');
   const [countries, setCountries] = useState<any[]>([]);
   const [cities, setCities] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState<string>('BD');
+  const [selectedCountry, setSelectedCountry] = useState<string>('');
 
-  // Fetch countries on mount
-  useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const response = await fetch('/api/locations/countries');
-        const result = await response.json();
-        if (result.success) {
-          setCountries(result.data.countries);
-          // Set default selected country if we have countries and no selection
-          if (result.data.countries.length > 0 && !selectedCountry) {
-            setSelectedCountry(result.data.countries[0].code);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching countries:', error);
-      } finally {
-        // Only stop loading if we're on the countries tab
-        if (activeTab === 'countries') {
-          setIsLoading(false);
+  // Dialog States
+  const [isAddCountryOpen, setIsAddCountryOpen] = useState(false);
+  const [isEditCountryOpen, setIsEditCountryOpen] = useState(false);
+  const [isDeleteCountryOpen, setIsDeleteCountryOpen] = useState(false);
+  const [isAddCityOpen, setIsAddCityOpen] = useState(false);
+  const [isDeleteCityOpen, setIsDeleteCityOpen] = useState(false);
+
+  // Form States
+  const [currentCountry, setCurrentCountry] = useState<any>(null); // For Edit/Delete
+  const [currentCity, setCurrentCity] = useState<any>(null); // For Delete
+  const [formData, setFormData] = useState({ name: '', code: '' }); // For Country Add/Edit
+  const [cityForm, setCityForm] = useState(''); // For City Add
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch countries on mount and when interactions happen that might change data
+  const fetchCountries = async () => {
+    try {
+      const response = await fetch('/api/locations/countries');
+      const result = await response.json();
+      if (result.success) {
+        setCountries(result.data.countries);
+        // Default selection logic
+        if (result.data.countries.length > 0 && !selectedCountry) {
+            // Find India, Bangladesh or Pakistan first, else first one
+            const priority = result.data.countries.find((c: any) => 
+                ['BD', 'IN', 'PK'].includes(c.code)
+            );
+            setSelectedCountry(priority ? priority.code : result.data.countries[0].code);
         }
       }
-    };
+    } catch (error) {
+      console.error('Error fetching countries:', error);
+    } finally {
+      if (activeTab === 'countries') setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchCountries();
   }, []);
 
-  // Fetch cities when tab is cities or country selection changes
+  // Fetch cities
+  const fetchCities = async () => {
+    if (!selectedCountry) return;
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/locations/cities?country=${selectedCountry}`);
+      const result = await response.json();
+      if (result.success) {
+        setCities(result.data.cities);
+      }
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'cities' && selectedCountry) {
-      const fetchCities = async () => {
-        setIsLoading(true);
-        try {
-          const response = await fetch(`/api/locations/cities?country=${selectedCountry}`);
-          const result = await response.json();
-          if (result.success) {
-            setCities(result.data.cities);
-          }
-        } catch (error) {
-          console.error('Error fetching cities:', error);
-        } finally {
-          setIsLoading(false);
-        }
-      };
       fetchCities();
     } else if (activeTab === 'countries') {
       setIsLoading(false);
     }
   }, [activeTab, selectedCountry]);
+
+  // Handlers
+  const handleAddCountry = async () => {
+    if (!formData.name || !formData.code) return toast.error("Please fill all fields");
+    setIsSubmitting(true);
+    try {
+      const result = await addCountry(formData);
+      if (result.success) {
+        toast.success(result.message);
+        setIsAddCountryOpen(false);
+        setFormData({ name: '', code: '' });
+        fetchCountries(); 
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+      toast.error("Failed to add country");
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  const handleEditCountry = async () => {
+    if (!currentCountry || !formData.name || !formData.code) return;
+    setIsSubmitting(true);
+    try {
+      const result = await updateCountry(currentCountry._id, formData);
+      if (result.success) {
+        toast.success(result.message);
+        setIsEditCountryOpen(false);
+        fetchCountries();
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+        toast.error("Failed to update country");
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteCountry = async () => {
+    if (!currentCountry) return;
+    setIsSubmitting(true);
+    try {
+      const result = await deleteCountry(currentCountry._id);
+      if (result.success) {
+        toast.success(result.message);
+        setIsDeleteCountryOpen(false);
+        fetchCountries();
+        if (selectedCountry === currentCountry.code) setSelectedCountry('');
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+        toast.error("Failed to delete country");
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  const handleAddCity = async () => {
+    if (!cityForm || !selectedCountry) return toast.error("Please enter city name");
+    setIsSubmitting(true);
+    try {
+      // Need country ID, find it from countries list
+      const countryObj = countries.find(c => c.code === selectedCountry);
+      if (!countryObj) return toast.error("Country not found");
+
+      const result = await addCity(countryObj._id, cityForm);
+      if (result.success) {
+        toast.success(result.message);
+        setIsAddCityOpen(false);
+        setCityForm('');
+        fetchCities();
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+        toast.error("Failed to add city");
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteCity = async () => {
+    if (!currentCity || !selectedCountry) return;
+    setIsSubmitting(true);
+    try {
+      const countryObj = countries.find(c => c.code === selectedCountry);
+      if (!countryObj) return;
+
+      const result = await deleteCity(countryObj._id, currentCity.slug);
+      if (result.success) {
+        toast.success(result.message);
+        setIsDeleteCityOpen(false);
+        fetchCities();
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+      toast.error("Failed to delete city");
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  const openEditCountry = (country: any) => {
+    setCurrentCountry(country);
+    setFormData({ name: country.name, code: country.code });
+    setIsEditCountryOpen(true);
+  };
+
+  const openDeleteCountry = (country: any) => {
+    setCurrentCountry(country);
+    setIsDeleteCountryOpen(true);
+  };
+
+  const openDeleteCity = (city: any) => {
+    setCurrentCity(city);
+    setIsDeleteCityOpen(true);
+  }
 
   // Client-side search filters
   const filteredCountries = countries.filter(c =>
@@ -136,19 +312,26 @@ export default function LocationsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="rounded-xl h-11">
-            <Upload className="w-4 h-4 mr-2" /> Import
-          </Button>
-          <Button variant="outline" className="rounded-xl h-11">
-            <Download className="w-4 h-4 mr-2" /> Export
-          </Button>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 text-white text-sm font-medium shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-shadow flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" /> Add Location
-          </motion.button>
+            {activeTab === 'cities' ? (
+                <Button 
+                    variant="outline" 
+                    className="rounded-xl h-11 border-dashed border-2"
+                    onClick={() => setIsAddCityOpen(true)}
+                    disabled={!selectedCountry}
+                >
+                    <Plus className="w-4 h-4 mr-2" /> Add City
+                </Button>
+            ) : (
+                <Button 
+                    className="rounded-xl h-11 bg-gradient-to-r from-violet-500 to-purple-500 hover:opacity-90 transition-opacity"
+                    onClick={() => {
+                        setFormData({ name: '', code: '' });
+                        setIsAddCountryOpen(true);
+                    }}
+                >
+                    <Plus className="w-4 h-4 mr-2" /> Add Country
+                </Button>
+            )}
         </div>
       </motion.div>
 
@@ -255,13 +438,13 @@ export default function LocationsPage() {
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ delay: i * 0.05 }}
                     whileHover={{ y: -4 }}
-                    className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-6 relative overflow-hidden"
+                    className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-6 relative overflow-hidden group"
                   >
                     <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-blue-500/20 to-transparent rounded-bl-full" />
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-xl">
-                          🌍
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-2xl">
+                          {getCountryFlagEmoji(country.code)}
                         </div>
                         <div>
                           <h3 className="font-semibold text-lg">{country.name}</h3>
@@ -270,18 +453,22 @@ export default function LocationsPage() {
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEditCountry(country)}>
+                              <Edit className="mr-2 h-4 w-4" />Edit
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => {
                             setSelectedCountry(country.code);
                             setActiveTab('cities');
                           }}>View Cities</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-rose-500"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                          <DropdownMenuItem className="text-rose-500" onClick={() => openDeleteCountry(country)}>
+                              <Trash2 className="mr-2 h-4 w-4" />Delete
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -294,7 +481,7 @@ export default function LocationsPage() {
                       </div>
                       <div>
                         <p className="text-muted-foreground">Cities</p>
-                        <p className="font-semibold mt-1">{(country.cities?.length) || 'N/A'}</p>
+                        <p className="font-semibold mt-1">{(country.cities?.length) || '0'}</p>
                       </div>
                     </div>
                   </motion.div>
@@ -316,29 +503,34 @@ export default function LocationsPage() {
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ delay: i * 0.05 }}
                     whileHover={{ y: -4 }}
-                    className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-6"
+                    className="rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm p-6 group"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-400 flex items-center justify-center text-white">
-                          <Building2 className="w-6 h-6" />
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-400 flex items-center justify-center text-2xl">
+                          {getCountryFlagEmoji(selectedCountry)}
                         </div>
                         <div>
                           <h3 className="font-semibold text-lg">{city.name}</h3>
-                          <p className="text-sm text-muted-foreground">{city.country}</p>
+                          <p className="text-sm text-muted-foreground">
+                              {countries.find(c => c.code === selectedCountry)?.name || selectedCountry}
+                          </p>
                         </div>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
-                          <DropdownMenuItem>View Areas</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => toast.info("Edit city feature coming soon")}>
+                              <Edit className="mr-2 h-4 w-4" />Edit
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-rose-500"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                          <DropdownMenuItem className="text-rose-500" onClick={() => openDeleteCity(city)}>
+                              <Trash2 className="mr-2 h-4 w-4" />Delete
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -349,7 +541,7 @@ export default function LocationsPage() {
                   </motion.div>
                 )) : !isLoading && (
                   <div className="col-span-full py-20 text-center text-muted-foreground">
-                    No cities found for {selectedCountry}.
+                    No cities found for {selectedCountry || 'selected country'}.
                   </div>
                 )}
               </>
@@ -358,12 +550,161 @@ export default function LocationsPage() {
             {activeTab === 'areas' && (
               <div className="col-span-full py-20 text-center text-muted-foreground">
                 <MapPin className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                <p>Areas API implementation pending.</p>
+                <p>Select a city to view areas (Coming Soon).</p>
               </div>
             )}
           </AnimatePresence>
         </motion.div>
       </div>
+
+      {/* --- DIALOGS --- */}
+
+      {/* Add Country Dialog */}
+      <Dialog open={isAddCountryOpen} onOpenChange={setIsAddCountryOpen}>
+        <DialogContent>
+            <DialogHeader>
+            <DialogTitle>Add New Country</DialogTitle>
+            <DialogDescription>
+                Add a new country to the supported locations list.
+            </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+                <Label htmlFor="c-name">Country Name</Label>
+                <Input 
+                    id="c-name" 
+                    placeholder="e.g. Bangladesh" 
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                />
+            </div>
+            <div className="grid gap-2">
+                <Label htmlFor="c-code">Country Code (ISO 2)</Label>
+                <Input 
+                    id="c-code" 
+                    placeholder="e.g. BD" 
+                    maxLength={2}
+                    value={formData.code}
+                    onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})}
+                />
+            </div>
+            </div>
+            <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddCountryOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddCountry} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add Country"}
+            </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Country Dialog */}
+      <Dialog open={isEditCountryOpen} onOpenChange={setIsEditCountryOpen}>
+        <DialogContent>
+            <DialogHeader>
+            <DialogTitle>Edit Country</DialogTitle>
+            <DialogDescription>Update country details.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+                <Label htmlFor="e-name">Country Name</Label>
+                <Input 
+                    id="e-name" 
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                />
+            </div>
+            <div className="grid gap-2">
+                <Label htmlFor="e-code">Country Code</Label>
+                <Input 
+                    id="e-code" 
+                    value={formData.code}
+                    onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})}
+                />
+            </div>
+            </div>
+            <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditCountryOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditCountry} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Changes"}
+            </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Country Alert */}
+      <AlertDialog open={isDeleteCountryOpen} onOpenChange={setIsDeleteCountryOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete 
+                <span className="font-bold text-foreground"> {currentCountry?.name} </span> 
+                and all its {currentCountry?.cities?.length} associated cities.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+                onClick={(e) => { e.preventDefault(); handleDeleteCountry(); }}
+                className="bg-rose-600 hover:bg-rose-700 focus:ring-rose-600"
+                disabled={isSubmitting}
+            >
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete Country"}
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Add City Dialog */}
+      <Dialog open={isAddCityOpen} onOpenChange={setIsAddCityOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Add City to {countries.find(c => c.code === selectedCountry)?.name}</DialogTitle>
+                <DialogDescription>Add a new city to this country.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="city-name">City Name</Label>
+                    <Input 
+                        id="city-name" 
+                        placeholder="e.g. Dhaka" 
+                        value={cityForm}
+                        onChange={(e) => setCityForm(e.target.value)}
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddCityOpen(false)}>Cancel</Button>
+                <Button onClick={handleAddCity} disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add City"}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete City Alert */}
+      <AlertDialog open={isDeleteCityOpen} onOpenChange={setIsDeleteCityOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Delete City?</AlertDialogTitle>
+            <AlertDialogDescription>
+                Are you sure you want to delete <span className="font-bold text-foreground">{currentCity?.name}</span>?
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+                 onClick={(e) => { e.preventDefault(); handleDeleteCity(); }}
+                 className="bg-rose-600 hover:bg-rose-700"
+                 disabled={isSubmitting}
+            >
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete City"}
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </motion.div>
   );
 }

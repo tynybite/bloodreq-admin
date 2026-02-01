@@ -162,3 +162,44 @@ export async function sendBroadcast(
 ): Promise<OneSignalResponse> {
   return sendNotification(payload, { segment: 'All' });
 }
+
+/**
+ * Send notification for new campaign/promotion
+ * Can optionally target specific cities
+ */
+export async function sendCampaignNotification(campaign: {
+  title: string;
+  description?: string;
+  sponsor_name?: string;
+  banner_url?: string;
+  target_cities?: string[];
+  campaign_id?: string;
+}): Promise<OneSignalResponse> {
+  const payload: NotificationPayload = {
+    title: `🎉 New Offer: ${campaign.title}`,
+    message: campaign.description || `Check out this special promotion from ${campaign.sponsor_name || 'our partner'}!`,
+    imageUrl: campaign.banner_url,
+    data: {
+      type: 'campaign',
+      campaign_id: campaign.campaign_id,
+    }
+  };
+
+  // If targeting specific cities, use filters
+  if (campaign.target_cities && campaign.target_cities.length > 0) {
+    // Build OR filter for multiple cities
+    const cityFilters: Array<{ field: string; key?: string; relation: string; value: string } | { operator: string }> = [];
+    campaign.target_cities.forEach((city, index) => {
+      if (index > 0) {
+        cityFilters.push({ operator: 'OR' } as any);
+      }
+      cityFilters.push({ field: 'tag', key: 'city', relation: '=', value: city });
+    });
+    
+    return sendNotification(payload, { filters: cityFilters as any });
+  }
+
+  // Otherwise broadcast to all users
+  return sendNotification(payload, { segment: 'All' });
+}
+

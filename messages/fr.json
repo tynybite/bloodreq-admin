@@ -58,7 +58,13 @@
     "bloodTypeDistribution": "Distribution des groupes sanguins",
     "downloadReport": "Télécharger le rapport",
     "manageRequests": "Gérer les demandes",
-    "viewCritical": "Voir les demandes critiques"
+    "viewCritical": "Voir les demandes critiques",
+    "overview": "Aperçu",
+    "analytics": "Analyses",
+    "reports": "Rapports",
+    "pendingVerifications": "Vérifications en attente",
+    "urgentRequests": "Demandes urgentes",
+    "newFundraisers": "Nouvelles collectes"
   },
   "bloodRequests": {
     "title": "Demandes de sang",

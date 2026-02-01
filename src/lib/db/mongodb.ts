@@ -66,6 +66,7 @@ export const Collections = {
   ADMIN_USERS: "admin_users",
   SYSTEM_SETTINGS: "system_settings",
   LOCATIONS: "locations",
+  CAMPAIGNS: "campaigns",
 } as const;
 
 export interface LocationDocument extends Document {
@@ -238,6 +239,68 @@ export interface FundraiserDocument extends Document {
   }[];
   created_at: Date;
   updated_at: Date;
+}
+
+export interface CampaignDocument extends Document {
+  _id?: ObjectId;
+
+  // Core info
+  title: string;
+  description: string;
+  type: string; // Dynamic from system_settings campaign_types
+
+  // Banners (carousel support)
+  banners: {
+    url: string;
+    alt_text?: string;
+    order: number;
+  }[];
+
+  // Sponsor info
+  sponsor: {
+    name: string;
+    logo_url?: string;
+    contact_email?: string;
+    contact_phone?: string;
+  };
+
+  // Billing
+  billing: {
+    amount_paid: number;
+    payment_status: "pending" | "paid" | "overdue";
+    payment_date?: Date;
+    invoice_id?: string;
+  };
+
+  // Location targeting
+  target_cities: string[];
+
+  // Scheduling
+  start_date: Date;
+  end_date: Date;
+
+  // Priority (manual + urgency auto-boost)
+  priority: number; // 1-100, higher = shown first
+
+  // Status
+  is_active: boolean;
+  status: "draft" | "scheduled" | "active" | "paused" | "completed";
+
+  // Action
+  action: {
+    type: "link" | "phone" | "email" | "in_app";
+    value: string;
+    button_text: string;
+  };
+
+  // Analytics
+  views: number;
+  clicks: number;
+
+  // Metadata
+  created_at: Date;
+  updated_at: Date;
+  created_by: string;
 }
 
 export default clientPromise;
