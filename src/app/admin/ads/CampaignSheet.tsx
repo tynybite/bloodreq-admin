@@ -40,6 +40,7 @@ import {
   Megaphone,
 } from 'lucide-react';
 import { createCampaign, updateCampaign, addCampaignType } from './campaign-actions';
+import CountryList from 'country-list-with-dial-code-and-flag';
 
 const Field = ({ label, icon: Icon, required, children }: any) => (
   <div className="space-y-2 group">
@@ -72,6 +73,13 @@ const paymentStatuses = [
   { value: 'overdue', label: 'Overdue' },
 ];
 
+// All countries with dial codes from package (254 countries)
+const countryCodes = (CountryList.getAll() as any[]).map((c) => ({
+  code: c.dialCode as string,
+  name: c.name as string,
+  flag: c.flag as string,
+}));
+
 export default function CampaignSheet({
   isOpen,
   onOpenChange,
@@ -92,7 +100,7 @@ export default function CampaignSheet({
     description: campaign?.description || '',
     type: campaign?.type || 'partner_promo',
     banners: campaign?.banners || [],
-    sponsor: campaign?.sponsor || { name: '', logo_url: '', contact_email: '', contact_phone: '' },
+    sponsor: campaign?.sponsor || { name: '', logo_url: '', contact_email: '', country_code: '+91', contact_phone: '' },
     billing: campaign?.billing || { amount_paid: 0, payment_status: 'pending', invoice_id: '' },
     target_cities: campaign?.target_cities || [],
     start_date: campaign?.start_date ? new Date(campaign.start_date).toISOString().split('T')[0] : '',
@@ -345,12 +353,29 @@ export default function CampaignSheet({
                   />
                 </Field>
                 <Field label="Contact Phone">
-                  <Input
-                    value={form.sponsor.contact_phone}
-                    onChange={(e) => setForm({ ...form, sponsor: { ...form.sponsor, contact_phone: e.target.value } })}
-                    placeholder="+91..."
-                    className="h-11 rounded-xl bg-secondary/30"
-                  />
+                  <div className="flex gap-2">
+                    <Select
+                      value={form.sponsor.country_code || '+91'}
+                      onValueChange={(v) => setForm({ ...form, sponsor: { ...form.sponsor, country_code: v } })}
+                    >
+                      <SelectTrigger className="h-11 w-28 rounded-xl bg-secondary/30">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countryCodes.map(c => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.flag} {c.code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      value={form.sponsor.contact_phone}
+                      onChange={(e) => setForm({ ...form, sponsor: { ...form.sponsor, contact_phone: e.target.value } })}
+                      placeholder="9876543210"
+                      className="h-11 rounded-xl bg-secondary/30 flex-1"
+                    />
+                  </div>
                 </Field>
               </div>
             </div>

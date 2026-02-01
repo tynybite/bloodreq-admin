@@ -261,6 +261,7 @@ export interface CampaignDocument extends Document {
     name: string;
     logo_url?: string;
     contact_email?: string;
+    country_code?: string;
     contact_phone?: string;
   };
 
