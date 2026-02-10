@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getCollection, Collections, BloodRequestDocument, UserDocument } from '@/lib/db/mongodb';
 import { successResponse, errorResponse, getAuthUser, parseBody, bloodGroupSchema } from '@/lib/api-utils';
+import { createAdminNotification } from '@/lib/notifications/admin-notifications';
 
 // Schema for creating a blood request
 const createBloodRequestSchema = z.object({
@@ -182,6 +183,16 @@ export async function POST(request: NextRequest) {
     };
 
     const result = await requestsCollection.insertOne(newRequest);
+
+    // Notify Admins
+
+    await createAdminNotification(
+      'blood_request',
+      result.insertedId.toString(),
+      `New Blood Request: ${data.blood_group} in ${data.city}`,
+      `${data.patient_name} needs ${data.units} units at ${data.hospital}. Urgency: ${data.urgency}`,
+      `/admin/blood-requests/${result.insertedId}`
+    );
 
     return successResponse({
       id: result.insertedId.toString(),

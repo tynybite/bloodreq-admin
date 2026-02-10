@@ -67,7 +67,19 @@ export const Collections = {
   LOCATIONS: "locations",
   CAMPAIGNS: "campaigns",
   SUPPORT_TICKETS: "support_tickets",
+  ADMIN_NOTIFICATIONS: "admin_notifications",
 } as const;
+
+export interface AdminNotificationDocument extends Document {
+  _id?: ObjectId;
+  type: 'ticket' | 'blood_request' | 'fundraiser';
+  reference_id: string; // ID of the created item
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: Date;
+  link: string; // URL to the admin page for this item
+}
 
 export interface SupportTicketDocument extends Document {
   _id?: ObjectId;

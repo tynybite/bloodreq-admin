@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -74,6 +75,7 @@ function SettingsSection({ title, description, icon: Icon, gradient, children }:
 }
 
 export default function SettingsClient({ initialSettings }: { initialSettings: any }) {
+  const router = useRouter();
   const [showKey, setShowKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { theme: currentTheme, setTheme } = useTheme();
@@ -477,6 +479,36 @@ export default function SettingsClient({ initialSettings }: { initialSettings: a
           </div>
         </div>
       </SettingsSection>
+
+      {/* Danger Zone */}
+      <motion.div 
+        variants={itemVariants}
+        className="rounded-2xl border border-red-200/50 bg-red-50/50 dark:bg-red-950/10 dark:border-red-900/50 backdrop-blur-sm overflow-hidden"
+      >
+        <div className="p-6 border-b border-red-200/50 dark:border-red-900/50 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center">
+            <Shield className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-lg text-red-900 dark:text-red-200">Danger Zone</h3>
+            <p className="text-sm text-red-700/80 dark:text-red-300/70">Irreversible actions for your account</p>
+          </div>
+        </div>
+        <div className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-gray-900 dark:text-gray-100">Delete Account</p>
+              <p className="text-sm text-muted-foreground">Permanently delete your account and all associated data.</p>
+            </div>
+            <Button 
+              variant="destructive" 
+              onClick={() => router.push('/delete-account')}
+            >
+              Delete Account
+            </Button>
+          </div>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }

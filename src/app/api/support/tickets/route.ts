@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getCollection, Collections, SupportTicketDocument, UserDocument } from '@/lib/db/mongodb';
 import { successResponse, errorResponse, getAuthUser, parseBody } from '@/lib/api-utils';
+import { createAdminNotification } from '@/lib/notifications/admin-notifications';
 
 // Schema for creating a support ticket (from mobile app)
 const createTicketSchema = z.object({
@@ -123,6 +124,15 @@ export async function POST(request: NextRequest) {
     };
 
     const result = await ticketsCollection.insertOne(newTicket);
+
+    // Notify Admins
+    await createAdminNotification(
+      'ticket',
+      result.insertedId.toString(),
+      `New Support Ticket: ${data.subject}`,
+      `User ${user!.name || user!.email} created a new ticket in ${data.category}.`,
+      `/admin/support/${result.insertedId}`
+    );
 
     return successResponse(
       {

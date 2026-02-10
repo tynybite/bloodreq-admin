@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
 // Schema for creating a fundraiser
 import { z } from 'zod';
 import { getCollection, Collections } from '@/lib/db/mongodb';
+import { createAdminNotification } from '@/lib/notifications/admin-notifications';
 
 const createFundraiserSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
@@ -87,6 +88,16 @@ export async function POST(request: NextRequest) {
     };
 
     const insertResult = await collection.insertOne(newFundraiser);
+
+    // Notify Admins
+
+    await createAdminNotification(
+      'fundraiser',
+      insertResult.insertedId.toString(),
+      `New Fundraiser: ${data.title}`,
+      `Goal: ${data.amount_needed} for ${data.patient_name}.`,
+      `/admin/fundraisers/${insertResult.insertedId}`
+    );
 
     return successResponse({
       id: insertResult.insertedId.toString(),

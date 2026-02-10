@@ -17,8 +17,8 @@ import {
 interface Ticket {
   id: string;
   user_id: string;
-  user_email: string;
-  user_name: string;
+  user_email?: string;
+  user_name?: string;
   subject: string;
   category: string;
   status: string;
