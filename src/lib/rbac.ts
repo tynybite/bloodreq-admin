@@ -13,6 +13,7 @@ export const PERMISSIONS: Record<string, AdminRole[]> = {
   '/admin/fundraisers': ['super_admin', 'admin', 'manager'],
   '/admin/donations': ['super_admin', 'admin', 'manager'],
   '/admin/users': ['super_admin', 'admin', 'manager'],
+  '/admin/support': ['super_admin', 'admin', 'manager'],
   '/admin/locations': ['super_admin', 'admin', 'manager'],
   '/admin/moderators': ['super_admin', 'admin'],
   '/admin/ads': ['super_admin', 'admin', 'manager'],

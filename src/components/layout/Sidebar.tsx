@@ -23,6 +23,7 @@ import {
   BarChart3,
   ChevronLeft,
   CreditCard,
+  Headset,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -38,6 +39,7 @@ const menuConfig = [
   { icon: HandCoins, labelKey: 'fundraisers', href: '/admin/fundraisers' },
   { icon: Heart, labelKey: 'donations', href: '/admin/donations' },
   { icon: Users, labelKey: 'users', href: '/admin/users' },
+  { icon: Headset, labelKey: 'support', href: '/admin/support' },
   { icon: MapPin, labelKey: 'locations', href: '/admin/locations' },
   { icon: Shield, labelKey: 'moderators', href: '/admin/moderators' },
   { icon: Megaphone, labelKey: 'ads', href: '/admin/ads' },

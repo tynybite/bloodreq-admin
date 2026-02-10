@@ -66,7 +66,29 @@ export const Collections = {
   SYSTEM_SETTINGS: "system_settings",
   LOCATIONS: "locations",
   CAMPAIGNS: "campaigns",
+  SUPPORT_TICKETS: "support_tickets",
 } as const;
+
+export interface SupportTicketDocument extends Document {
+  _id?: ObjectId;
+  user_id: string; // Firebase UID
+  user_email?: string;
+  user_name?: string;
+  subject: string;
+  category: string;
+  status: "open" | "in_progress" | "resolved";
+  priority: "low" | "medium" | "high";
+  messages: {
+    sender_id: string;
+    text: string;
+    is_admin: boolean;
+    created_at: Date;
+    attachment_url?: string;
+  }[];
+  created_at: Date;
+  updated_at: Date;
+  last_message_at: Date;
+}
 
 export interface LocationDocument extends Document {
   _id?: ObjectId;
