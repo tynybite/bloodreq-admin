@@ -391,7 +391,8 @@ export default function LandingPage() {
                       <a href="#">Donors</a>
                       <a href="#">Hospitals</a>
                       <a href="#">Mission</a>
-                      <a href="#">Privacy</a>
+                      <a href="/privacy">Privacy Policy</a>
+                      <a href="/terms">Terms &amp; Conditions</a>
                   </div>
 
                   <div className="gf-socials">
@@ -414,4 +415,3 @@ export default function LandingPage() {
     </div>
   );
 }
-
