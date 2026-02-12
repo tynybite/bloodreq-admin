@@ -24,6 +24,7 @@ interface UserDocument {
   emergency_contact?: string;
   is_available_to_donate: boolean;
   avatar_url?: string;
+  gender?: string; // Added gender
   created_at: Date;
   updated_at: Date;
 }
@@ -70,6 +71,7 @@ export async function GET(request: NextRequest) {
       emergency_contact: profile.emergency_contact,
       is_available_to_donate: profile.is_available_to_donate,
       avatar_url: profile.avatar_url,
+      gender: profile.gender,
       created_at: profile.created_at,
       updated_at: profile.updated_at,
       total_donations: totalDonations,
@@ -92,6 +94,7 @@ const updateProfileSchema = z.object({
   area: z.string().optional(),
   emergency_contact: z.string().optional(),
   is_available_to_donate: z.boolean().optional(),
+  gender: z.string().optional(),
   avatar_url: z.string().optional(), // Accepts URL or Base64 data URI
 });
 
@@ -118,6 +121,7 @@ export async function PATCH(request: NextRequest) {
     if (data.area !== undefined) updateData.area = data.area;
     if (data.emergency_contact !== undefined) updateData.emergency_contact = data.emergency_contact;
     if (data.is_available_to_donate !== undefined) updateData.is_available_to_donate = data.is_available_to_donate;
+    if (data.gender !== undefined) updateData.gender = data.gender;
     if (data.avatar_url !== undefined) updateData.avatar_url = data.avatar_url;
 
     console.log('Updating profile for user:', user!.id, 'with data:', updateData);

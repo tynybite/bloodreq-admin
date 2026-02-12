@@ -20,6 +20,7 @@ const createBloodRequestSchema = z.object({
   alternate_contact: z.string().optional(),
   notes: z.string().optional(),
   required_date: z.string().optional(),
+  patient_gender: z.string().optional(),
 });
 
 // GET /api/blood-requests - List blood requests with filtering
@@ -104,6 +105,7 @@ export async function GET(request: NextRequest) {
         request_type: 'blood_request', // Explicit type for mobile
         patient_name: req.patient_name,
         patient_age: req.patient_age,
+        patient_gender: req.patient_gender,
         blood_group: req.blood_group,
         units: req.units,
         hospital: req.hospital,
@@ -161,6 +163,7 @@ export async function POST(request: NextRequest) {
       requester_id: user!.id,
       patient_name: data.patient_name,
       patient_age: data.patient_age,
+      patient_gender: data.patient_gender,
       blood_group: data.blood_group,
       units: data.units,
       hospital: data.hospital,

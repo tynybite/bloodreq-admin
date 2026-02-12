@@ -127,6 +127,7 @@ export interface UserDocument extends Document {
   emergency_contact?: string;
   is_available_to_donate: boolean;
   avatar_url?: string;
+  gender?: string; // Added gender
   created_at: Date;
   updated_at: Date;
   // Admin-specific fields
@@ -174,6 +175,7 @@ export interface BloodRequestDocument extends Document {
   requester_id: string;
   patient_name: string;
   patient_age?: number;
+  patient_gender?: string; // Added patient_gender
   blood_group: string;
   units: number;
   hospital: string;
