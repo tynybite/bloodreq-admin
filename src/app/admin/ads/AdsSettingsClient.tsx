@@ -72,6 +72,7 @@ interface Campaign {
 }
 
 interface AdsSettingsClientProps {
+  initialGlobalEnabled: boolean;
   initialAdmob: any;
   initialMeta: any;
   initialCampaigns: Campaign[];
@@ -79,6 +80,7 @@ interface AdsSettingsClientProps {
 }
 
 export default function AdsSettingsClient({ 
+  initialGlobalEnabled,
   initialAdmob, 
   initialMeta, 
   initialCampaigns,
@@ -92,6 +94,8 @@ export default function AdsSettingsClient({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [campaignToDelete, setCampaignToDelete] = useState<string | null>(null);
   
+  const [globalEnabled, setGlobalEnabled] = useState(initialGlobalEnabled);
+
   const [admob, setAdmob] = useState(initialAdmob || {
     enabled: false,
     appId: "",
@@ -141,6 +145,7 @@ export default function AdsSettingsClient({
     setIsSaving(true);
     try {
       await Promise.all([
+        updateAdSettings('ads_global', { enabled: globalEnabled }),
         updateAdSettings('ads_admob', admob),
         updateAdSettings('ads_meta', meta)
       ]);
@@ -261,6 +266,29 @@ export default function AdsSettingsClient({
               </div>
             </motion.div>
           ))}
+        </motion.div>
+
+        {/* Global Ad Switch */}
+        <motion.div variants={itemVariants} className="p-6 rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Megaphone className="w-5 h-5 text-primary" />
+              Global Ad Control
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Master switch to enable/disable all ads across the app instantly.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+             <span className={globalEnabled ? "text-primary font-medium" : "text-muted-foreground"}>
+                {globalEnabled ? "Ads Enabled" : "Ads Disabled"}
+             </span>
+             <Switch 
+                checked={globalEnabled}
+                onCheckedChange={setGlobalEnabled}
+                className="data-[state=checked]:bg-primary"
+             />
+          </div>
         </motion.div>
 
         {/* Ad Platforms */}

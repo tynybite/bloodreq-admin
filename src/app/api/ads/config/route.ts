@@ -12,14 +12,16 @@ export async function GET(request: NextRequest) {
   try {
     const collection = await getCollection<AdSettingDoc>('system_settings');
     
-    // Fetch both AdMob and Meta settings
-    const [admobDoc, metaDoc] = await Promise.all([
+    // Fetch AdMob, Meta, and Global settings
+    const [admobDoc, metaDoc, globalDoc] = await Promise.all([
       collection.findOne({ _id: 'ads_admob' } as any),
-      collection.findOne({ _id: 'ads_meta' } as any)
+      collection.findOne({ _id: 'ads_meta' } as any),
+      collection.findOne({ _id: 'ads_global' } as any)
     ]);
     
     const admob = admobDoc?.value || null;
     const meta = metaDoc?.value || null;
+    const globalSettings = globalDoc?.value || { enabled: false };
     
     // Only return enabled platforms with their IDs
     const config: any = {};
@@ -41,8 +43,12 @@ export async function GET(request: NextRequest) {
       };
     }
     
+    // Global enable check: 
+    // Must be globally enabled AND at least one provider must be enabled
+    const adsEnabled = globalSettings.enabled && (!!admob?.enabled || !!meta?.enabled);
+    
     return successResponse({ 
-      ads_enabled: !!(admob?.enabled || meta?.enabled),
+      ads_enabled: adsEnabled,
       config 
     });
   } catch (error: any) {
