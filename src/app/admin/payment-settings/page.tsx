@@ -7,7 +7,7 @@ export const metadata = {
 };
 
 export default async function PaymentSettingsPage() {
-    const { bkash, paypal, cryptomus } = await getAllPaymentSettings();
+    const { bkash, paypal, cryptomus, stripe } = await getAllPaymentSettings();
 
     return (
         <div className="max-w-5xl mx-auto py-8 px-4">
@@ -15,6 +15,7 @@ export default async function PaymentSettingsPage() {
                 initialBkash={bkash} 
                 initialPaypal={paypal}
                 initialCryptomus={cryptomus}
+                initialStripe={stripe}
             />
         </div>
     );

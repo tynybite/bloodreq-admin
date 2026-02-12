@@ -77,7 +77,7 @@ export async function getAllPaymentSettings() {
     try {
         const settingsCollection = await getCollection<AppSettingsDocument>('app_settings');
         const settings = await settingsCollection.find({
-            key: { $in: ['payment_bkash', 'payment_paypal', 'payment_cryptomus'] }
+            key: { $in: ['payment_bkash', 'payment_paypal', 'payment_cryptomus', 'payment_stripe'] }
         }).toArray();
         
         const result: Record<string, any> = {};
@@ -89,6 +89,7 @@ export async function getAllPaymentSettings() {
             bkash: result['payment_bkash'] || null,
             paypal: result['payment_paypal'] || null,
             cryptomus: result['payment_cryptomus'] || null,
+            stripe: result['payment_stripe'] || null,
         };
     } catch (error) {
         console.error('Error fetching all payment settings:', error);

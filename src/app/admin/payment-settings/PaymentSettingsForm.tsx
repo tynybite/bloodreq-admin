@@ -17,9 +17,10 @@ interface PaymentSettingsFormProps {
     initialBkash: any;
     initialPaypal: any;
     initialCryptomus: any;
+    initialStripe: any;
 }
 
-export default function PaymentSettingsForm({ initialBkash, initialPaypal, initialCryptomus }: PaymentSettingsFormProps) {
+export default function PaymentSettingsForm({ initialBkash, initialPaypal, initialCryptomus, initialStripe }: PaymentSettingsFormProps) {
     const [isSaving, setIsSaving] = useState(false);
     const [bkash, setBkash] = useState(initialBkash || {
         enabled: false,
@@ -43,13 +44,21 @@ export default function PaymentSettingsForm({ initialBkash, initialPaypal, initi
         apiKey: "",
     });
 
+    const [stripe, setStripe] = useState(initialStripe || {
+        enabled: false,
+        publishableKey: "",
+        secretKey: "",
+        webhookSecret: "",
+    });
+
     const handleSave = async () => {
         setIsSaving(true);
         try {
             await Promise.all([
                 updatePaymentSettings('payment_bkash', bkash),
                 updatePaymentSettings('payment_paypal', paypal),
-                updatePaymentSettings('payment_cryptomus', cryptomus)
+                updatePaymentSettings('payment_cryptomus', cryptomus),
+                updatePaymentSettings('payment_stripe', stripe)
             ]);
             toast.success("Payment settings saved successfully");
         } catch (error) {
@@ -96,7 +105,7 @@ export default function PaymentSettingsForm({ initialBkash, initialPaypal, initi
 
             <motion.div variants={itemVariants}>
                 <Tabs defaultValue="bkash" className="w-full space-y-6 md:space-y-8">
-                    <TabsList className="p-1 h-12 md:h-14 bg-secondary/30 backdrop-blur-md rounded-2xl border border-white/10 w-full max-w-xl mx-auto grid grid-cols-3">
+                    <TabsList className="p-1 h-12 md:h-14 bg-secondary/30 backdrop-blur-md rounded-2xl border border-white/10 w-full max-w-xl mx-auto grid grid-cols-4">
                         <TabsTrigger 
                             value="bkash" 
                             className="h-full rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:shadow-md transition-all font-medium text-xs md:text-sm"
@@ -109,11 +118,17 @@ export default function PaymentSettingsForm({ initialBkash, initialPaypal, initi
                         >
                             PayPal
                         </TabsTrigger>
-                         <TabsTrigger 
+                        <TabsTrigger 
                             value="cryptomus" 
                             className="h-full rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:shadow-md transition-all font-medium text-xs md:text-sm"
                         >
                             Cryptomus
+                        </TabsTrigger>
+                         <TabsTrigger 
+                            value="stripe" 
+                            className="h-full rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:shadow-md transition-all font-medium text-xs md:text-sm"
+                        >
+                            Stripe
                         </TabsTrigger>
                     </TabsList>
                     
@@ -359,6 +374,73 @@ export default function PaymentSettingsForm({ initialBkash, initialPaypal, initi
                                         <div className="space-y-1">
                                             <h4 className="text-sm font-semibold text-orange-500">Security Note</h4>
                                             <p className="text-xs text-muted-foreground">Ensure you have verified your domain and enabled 2FA in your Cryptomus account before generating API keys.</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                         </div>
+                    </TabsContent>
+
+                    {/* Stripe Settings */}
+                    <TabsContent value="stripe" className="focus-visible:outline-none">
+                         <div className="relative group">
+                            <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-purple-500/5 rounded-3xl blur-xl transition-all duration-500 group-hover:blur-2xl opacity-50" />
+                            <Card className="relative overflow-hidden border-border/50 bg-card/40 backdrop-blur-xl shadow-xl">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+                                
+                                <CardHeader className="pb-6 md:pb-8 border-b border-border/40 space-y-4 md:space-y-0">
+                                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                                        <div className="flex items-center gap-4 md:gap-5">
+                                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/25 shrink-0">
+                                                <CreditCard className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <CardTitle className="text-xl md:text-2xl font-display">Stripe Configuration</CardTitle>
+                                                <CardDescription className="text-sm md:text-base">Accept credit cards and local payment methods</CardDescription>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between md:justify-end gap-3 bg-secondary/30 px-4 py-2 rounded-full border border-border/50 w-full md:w-auto">
+                                            <span className="text-sm font-medium text-muted-foreground mr-2">
+                                                {stripe.enabled ? 'Enabled' : 'Disabled'}
+                                            </span>
+                                            <Switch 
+                                                checked={stripe.enabled} 
+                                                onCheckedChange={(checked) => setStripe({ ...stripe, enabled: checked })} 
+                                            />
+                                        </div>
+                                    </div>
+                                </CardHeader>
+                                
+                                <CardContent className="p-5 md:p-8 space-y-6 md:space-y-8">
+                                    <div className="grid gap-6">
+                                        <div className="space-y-3">
+                                            <Label className="text-base font-semibold">Publishable Key</Label>
+                                            <Input 
+                                                placeholder="pk_test_..." 
+                                                value={stripe.publishableKey}
+                                                onChange={(e) => setStripe({ ...stripe, publishableKey: e.target.value })}
+                                                className="h-11 md:h-12 rounded-xl bg-secondary/30 border-border/50 focus:border-violet-500/50 focus:ring-violet-500/20 font-mono text-sm md:text-base"
+                                            />
+                                        </div>
+                                        <div className="space-y-3">
+                                            <Label className="text-base font-semibold">Secret Key</Label>
+                                            <Input 
+                                                type="password"
+                                                placeholder="sk_test_..." 
+                                                value={stripe.secretKey}
+                                                onChange={(e) => setStripe({ ...stripe, secretKey: e.target.value })}
+                                                className="h-11 md:h-12 rounded-xl bg-secondary/30 border-border/50 focus:border-violet-500/50 focus:ring-violet-500/20 font-mono text-sm md:text-base"
+                                            />
+                                        </div>
+                                        <div className="space-y-3">
+                                            <Label className="text-base font-semibold">Webhook Secret</Label>
+                                            <Input 
+                                                type="password"
+                                                placeholder="whsec_..." 
+                                                value={stripe.webhookSecret}
+                                                onChange={(e) => setStripe({ ...stripe, webhookSecret: e.target.value })}
+                                                className="h-11 md:h-12 rounded-xl bg-secondary/30 border-border/50 focus:border-violet-500/50 focus:ring-violet-500/20 font-mono text-sm md:text-base"
+                                            />
                                         </div>
                                     </div>
                                 </CardContent>

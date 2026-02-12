@@ -10,7 +10,7 @@ export async function GET() {
   try {
     const settingsCollection = await getCollection<AppSettingsDocument>('app_settings');
     const settings = await settingsCollection.find({
-        key: { $in: ['payment_bkash', 'payment_paypal', 'payment_cryptomus'] }
+        key: { $in: ['payment_bkash', 'payment_paypal', 'payment_cryptomus', 'payment_stripe'] }
     }).toArray();
     
     const result: Record<string, any> = {};
@@ -55,6 +55,16 @@ export async function GET() {
             name: 'Cryptomus',
             type: 'crypto',
             merchantId: result['payment_cryptomus'].merchantId, // Safe to expose Merchant ID
+        });
+    }
+
+    // Stripe
+    if (result['payment_stripe']?.enabled) {
+        paymentMethods.push({
+            id: 'stripe',
+            name: 'Stripe',
+            type: 'card',
+            publishableKey: result['payment_stripe'].publishableKey, 
         });
     }
 
