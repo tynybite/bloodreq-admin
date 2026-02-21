@@ -130,7 +130,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         return errorResponse('Payment intent mismatch', 'PAYMENT_MISMATCH', 400);
       }
 
-      const donatedAmount = paymentIntent.amount; // already in BDT integer
+      const donatedAmountCents = paymentIntent.amount; // cents
+      const donatedAmountUsd = donatedAmountCents / 100; // convert to dollars
 
       // Check for duplicate (idempotency)
       const donationsCollection = await getCollection(Collections.DONATIONS);
@@ -144,8 +145,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         fundraiser_id: fundraiserId,
         donor_id: user!.id,
         payment_intent_id: paymentIntentId,
-        amount: donatedAmount,
-        currency: 'BDT',
+        amount: donatedAmountUsd,      // store in USD dollars
+        currency: 'USD',               // correct currency
         payment_method: 'stripe',
         status: 'completed',
         created_at: new Date(),
@@ -155,14 +156,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       await fundraiserCollection.updateOne(
         { _id: new ObjectId(fundraiserId) },
         {
-          $inc: { amount_raised: donatedAmount },
+          $inc: { amount_raised: donatedAmountUsd },
           $set: { updated_at: new Date() },
         },
       );
 
       return successResponse({
         message: 'Donation recorded successfully',
-        amount: donatedAmount,
+        amount: donatedAmountUsd,
       });
     }
 

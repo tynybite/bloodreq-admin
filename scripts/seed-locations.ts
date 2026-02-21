@@ -1,6 +1,7 @@
 const { MongoClient } = require('mongodb');
 const path = require('path');
 const fs = require('fs');
+const { Country, City } = require('country-state-city');
 
 // Load environment variables from .env file
 function loadEnv() {
@@ -41,98 +42,22 @@ if (!uri) {
   process.exit(1);
 }
 
-const locationsData = [
-  { 
-    name: 'Bangladesh', 
-    code: 'BD', 
-    cities: [
-      { name: 'Dhaka', slug: 'dhaka' },
-      { name: 'Chittagong', slug: 'chittagong' },
-      { name: 'Sylhet', slug: 'sylhet' },
-      { name: 'Khulna', slug: 'khulna' },
-      { name: 'Rajshahi', slug: 'rajshahi' },
-      { name: 'Barisal', slug: 'barisal' },
-      { name: 'Rangpur', slug: 'rangpur' },
-      { name: 'Comilla', slug: 'comilla' },
-      { name: 'Narayanganj', slug: 'narayanganj' },
-      { name: 'Gazipur', slug: 'gazipur' }
-    ]
-  },
-  { 
-    name: 'India', 
-    code: 'IN', 
-    cities: [
-      { name: 'Mumbai', slug: 'mumbai' },
-      { name: 'Delhi', slug: 'delhi' },
-      { name: 'Bangalore', slug: 'bangalore' },
-      { name: 'Hyderabad', slug: 'hyderabad' },
-      { name: 'Chennai', slug: 'chennai' },
-      { name: 'Kolkata', slug: 'kolkata' }
-    ]
-  },
-  { 
-    name: 'Pakistan', 
-    code: 'PK', 
-    cities: [
-      { name: 'Karachi', slug: 'karachi' },
-      { name: 'Lahore', slug: 'lahore' },
-      { name: 'Islamabad', slug: 'islamabad' }
-    ]
-  },
-  { 
-    name: 'United Arab Emirates', 
-    code: 'AE', 
-    cities: [
-      { name: 'Dubai', slug: 'dubai' },
-      { name: 'Abu Dhabi', slug: 'abu-dhabi' },
-      { name: 'Sharjah', slug: 'sharjah' }
-    ]
-  },
-  { 
-    name: 'Saudi Arabia', 
-    code: 'SA', 
-    cities: [
-      { name: 'Riyadh', slug: 'riyadh' },
-      { name: 'Jeddah', slug: 'jeddah' },
-      { name: 'Mecca', slug: 'mecca' },
-      { name: 'Medina', slug: 'medina' }
-    ]
-  },
-  { 
-    name: 'Malaysia', 
-    code: 'MY', 
-    cities: [
-      { name: 'Kuala Lumpur', slug: 'kuala-lumpur' },
-      { name: 'George Town', slug: 'george-town' }
-    ]
-  },
-  { 
-    name: 'Singapore', 
-    code: 'SG', 
-    cities: [
-      { name: 'Singapore', slug: 'singapore' }
-    ]
-  },
-  { 
-    name: 'United States', 
-    code: 'US', 
-    cities: [
-      { name: 'New York', slug: 'new-york' },
-      { name: 'Los Angeles', slug: 'los-angeles' },
-      { name: 'Chicago', slug: 'chicago' },
-      { name: 'Houston', slug: 'houston' }
-    ]
-  },
-  { 
-    name: 'United Kingdom', 
-    code: 'GB', 
-    cities: [
-      { name: 'London', slug: 'london' },
-      { name: 'Manchester', slug: 'manchester' },
-      { name: 'Birmingham', slug: 'birmingham' }
-    ]
-  }
+const requestedCountries = [
+  'United States', 'Canada', 'Mexico', 'United Kingdom', 'Germany',
+  'France', 'Italy', 'Spain', 'Netherlands', 'Sweden',
+  'Norway', 'Denmark', 'Switzerland', 'Belgium', 'Austria',
+  'Finland', 'Ireland', 'Poland', 'Bangladesh', 'India',
+  'Pakistan', 'Sri Lanka', 'Nepal', 'Saudi Arabia', 'United Arab Emirates',
+  'Qatar', 'Oman', 'Kuwait', 'Bahrain', 'Jordan',
+  'Turkey', 'Malaysia', 'Singapore', 'Indonesia', 'Thailand',
+  'Philippines', 'Vietnam', 'Japan', 'South Korea', 'South Africa',
+  'Nigeria', 'Kenya', 'Ghana', 'Egypt', 'Australia',
+  'New Zealand', 'Brazil', 'Argentina', 'Chile', 'Colombia'
 ];
+
+function generateSlug(text: string) {
+  return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
 
 async function seed() {
   const client = new MongoClient(uri);
@@ -144,18 +69,62 @@ async function seed() {
     const db = client.db(dbName);
     const collection = db.collection('locations');
 
+    const allGlobalCountries = Country.getAllCountries();
+    const locationsData = [];
+
+    for (const countryName of requestedCountries) {
+      const countryData = allGlobalCountries.find((c: any) => c.name === countryName);
+      
+      if (!countryData) {
+        console.warn(`WARNING: Could not find country ${countryName} in country-state-city data.`);
+        continue;
+      }
+
+      const allCities = City.getCitiesOfCountry(countryData.isoCode) || [];
+      
+      // Filter for unique city names and take up to 30
+      const uniqueCitiesMap = new Map();
+      for (const city of allCities) {
+        // Skip cities containing "County" to avoid duplicates of actual cities
+        if (city.name.includes(' County')) continue;
+        
+        if (!uniqueCitiesMap.has(city.name)) {
+          uniqueCitiesMap.set(city.name, {
+            name: city.name,
+            slug: generateSlug(city.name)
+          });
+        }
+        if (uniqueCitiesMap.size >= 30) {
+          break;
+        }
+      }
+
+      const cities = Array.from(uniqueCitiesMap.values());
+      
+      if (cities.length === 0) {
+        console.warn(`WARNING: Found 0 cities for ${countryName}`);
+      }
+      
+      locationsData.push({
+        name: countryName,
+        code: countryData.isoCode,
+        cities: cities,
+        created_at: new Date(),
+        updated_at: new Date()
+      });
+    }
+
     // Clear existing locations
     await collection.deleteMany({});
     console.log('Cleared existing locations');
 
     // Insert new locations
-    const result = await collection.insertMany(locationsData.map(loc => ({
-      ...loc,
-      created_at: new Date(),
-      updated_at: new Date()
-    })));
-
-    console.log(`Successfully inserted ${result.insertedCount} locations`);
+    if (locationsData.length > 0) {
+      const result = await collection.insertMany(locationsData);
+      console.log(`Successfully inserted ${result.insertedCount} locations (each with up to 30 cities)`);
+    } else {
+      console.log('No locations data generated to insert.');
+    }
 
   } catch (err) {
     console.error('Error seeding locations:', err);
