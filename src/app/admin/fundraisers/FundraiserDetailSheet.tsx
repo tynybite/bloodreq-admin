@@ -271,7 +271,7 @@ export default function FundraiserDetailSheet({
                                     {donation.donor_phone && <span className="block text-xs text-muted-foreground">{donation.donor_phone}</span>}
                                 </div>
                                 <div className="font-mono text-emerald-500 font-medium">
-                                    ৳{donation.amount.toLocaleString()}
+                                    {donation.currency === 'USD' ? '$' : '৳'}{donation.amount.toLocaleString()}
                                 </div>
                                 <div className="capitalize text-muted-foreground">
                                     {donation.payment_method || 'N/A'}

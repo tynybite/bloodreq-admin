@@ -182,14 +182,32 @@ export async function deleteDocument(fundraiserId: string, docId: string) {
 
 export async function getDonations(fundraiserId: string) {
     const collection = await getCollection<DonationDocument>(Collections.DONATIONS);
-    // Fetch donations for this fundraiser
-    const donationsRaw = await collection.find({ request_id: fundraiserId })
+    const usersCollection = await getCollection(Collections.USERS);
+
+    // Query by fundraiser_id (not request_id which is for blood donation offers)
+    const donationsRaw = await collection.find({ fundraiser_id: fundraiserId })
         .sort({ created_at: -1 })
         .toArray();
-        
-    return donationsRaw.map(d => ({
-        ...d,
-        id: d._id?.toString(),
-        _id: undefined
+
+    return await Promise.all(donationsRaw.map(async (d: any) => {
+        let donor_name = 'Anonymous';
+        if (d.donor_id) {
+            try {
+                const u = await usersCollection.findOne({ _id: d.donor_id.toString() } as any);
+                donor_name = u?.full_name || u?.name || u?.email || 'Anonymous';
+            } catch { /* ignore */ }
+        }
+        return {
+            id: d._id?.toString(),
+            donor_name,
+            donor_phone: null,
+            amount: d.amount || 0,
+            currency: d.currency || 'BDT',
+            payment_method: d.payment_method || 'unknown',
+            transaction_id: d.payment_intent_id || d.bkash_trx_id || d.transaction_id || null,
+            status: d.status || 'completed',
+            created_at: d.created_at,
+        };
     }));
 }
+

@@ -40,28 +40,43 @@ export type BloodDonation = {
 export async function getFinancialDonations() {
   const donationsCollection = await getCollection<DonationDocument>(Collections.DONATIONS);
   const fundraisersCollection = await getCollection<FundraiserDocument>(Collections.FUNDRAISERS);
+  const usersCollection = await getCollection<UserDocument>(Collections.USERS);
   
   // Get donations that have fundraiser_id (financial donations to fundraisers)
   const donationsRaw = await donationsCollection.find({ fundraiser_id: { $exists: true } })
     .sort({ created_at: -1 })
     .toArray();
 
-  // Manually join with fundraisers
+  // Manually join with fundraisers and resolve donor name
   const results = await Promise.all(donationsRaw.map(async (d: any) => {
     let fundraiser = null;
+    let donor_name: string | null = null;
+
     if (d.fundraiser_id) {
       try {
         const f = await fundraisersCollection.findOne({ _id: new ObjectId(d.fundraiser_id.toString()) });
         if (f) fundraiser = { title: f.title };
       } catch (e) { /* ignore */ }
     }
+
+    // Resolve donor name from donor_id (our endpoint stores donor_id, not donor_name)
+    if (d.donor_id) {
+      try {
+        const u = await usersCollection.findOne({ _id: d.donor_id.toString() } as any);
+        donor_name = u?.full_name || u?.name || u?.email || 'Anonymous';
+      } catch (e) { /* ignore */ }
+    }
+
+    // Map whichever transaction ID field was stored
+    const transaction_id = d.payment_intent_id || d.bkash_trx_id || d.transaction_id || null;
+
     return {
       id: d._id?.toString() || '',
       amount: d.amount || 0,
-      currency: 'BDT',
+      currency: d.currency || 'BDT',
       payment_method: d.payment_method || 'unknown',
-      transaction_id: d.transaction_id || null,
-      donor_name: d.donor_name || null,
+      transaction_id,
+      donor_name,
       donor_phone: null,
       status: d.status || 'pending',
       created_at: d.created_at?.toISOString() || new Date().toISOString(),
@@ -71,6 +86,7 @@ export async function getFinancialDonations() {
 
   return results;
 }
+
 
 // Blood donations - these are offers to fulfill blood requests
 export async function getBloodDonations() {

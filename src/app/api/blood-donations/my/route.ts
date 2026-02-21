@@ -16,7 +16,10 @@ export async function GET(request: NextRequest) {
     const donationsCollection = await getCollection(Collections.DONATIONS);
     const requestsCollection = await getCollection(Collections.BLOOD_REQUESTS);
 
-    const filter: any = { donor_id: user!.id };
+    const filter: any = {
+      donor_id: user!.id,
+      request_id: { $exists: true },  // only blood-offer donations, not fundraiser payments
+    };
     if (status) filter.status = status;
 
     const offset = (page - 1) * limit;
