@@ -131,3 +131,47 @@ export async function getUser(userId: string) {
     throw new Error(error.message);
   }
 }
+
+export async function deleteUser(userId: string) {
+  await verifyAuth();
+  try {
+    const usersCollection = await getCollection<UserDocument>(Collections.USERS);
+    
+    // Delete user document from MongoDB
+    const result = await usersCollection.deleteOne({ _id: userId } as any);
+    
+    if (result.deletedCount === 0) {
+      throw new Error('User not found');
+    }
+
+    // Delete from Firebase Auth
+    try {
+      await getFirebaseAuth().deleteUser(userId);
+    } catch (firebaseError: any) {
+      // User might not exist in Firebase (e.g. already deleted)
+      console.error('Firebase delete error (non-critical):', firebaseError.message);
+    }
+
+    // Clean up related data
+    try {
+      const requestsCollection = await getCollection(Collections.BLOOD_REQUESTS);
+      const donationsCollection = await getCollection(Collections.DONATIONS);
+      
+      await requestsCollection.updateMany(
+        { requester_id: userId } as any,
+        { $set: { status: 'cancelled', updated_at: new Date() } }
+      );
+      await donationsCollection.updateMany(
+        { donor_id: userId } as any,
+        { $set: { status: 'cancelled', updated_at: new Date() } }
+      );
+    } catch (cleanupError) {
+      console.error('Cleanup error (non-critical):', cleanupError);
+    }
+
+    revalidatePath('/admin/users');
+    return { success: true };
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+}

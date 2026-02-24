@@ -16,15 +16,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
-import { Loader2, User, Droplet, Building2, MapPin, Phone, FileText, Zap } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Loader2, User, Droplet, Building2, MapPin, Phone, FileText, Zap, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { PlacesAutocompleteWrapper } from "@/components/ui/places-autocomplete";
 
-// Field container with improved styling - Moved outside to prevent re-render focus loss
+// Field container with improved styling
 const Field = ({ label, icon: Icon, required, children }: any) => (
   <div className="space-y-2 group">
     <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2 group-focus-within:text-primary transition-colors">
@@ -58,6 +71,27 @@ export default function CreateRequestSheet({
     notes: "",
   });
 
+  // City search state
+  const [cityOpen, setCityOpen] = useState(false);
+  const [cities, setCities] = useState<{ name: string; slug: string }[]>([]);
+  const [citiesLoading, setCitiesLoading] = useState(false);
+
+  // Fetch cities when sheet opens
+  useEffect(() => {
+    if (isOpen && cities.length === 0) {
+      setCitiesLoading(true);
+      fetch('/api/locations/cities?country=BD')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.data?.cities) {
+            setCities(data.data.cities);
+          }
+        })
+        .catch(err => console.error('Failed to fetch cities:', err))
+        .finally(() => setCitiesLoading(false));
+    }
+  }, [isOpen]);
+
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -90,15 +124,13 @@ export default function CreateRequestSheet({
     }
   };
 
-
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      {/* Increased max-width and improved layout structure to prevent cropping */}
       <SheetContent className="sm:max-w-2xl p-0 flex flex-col bg-background/95 backdrop-blur-xl border-l border-border/40">
         
-        {/* Header with Gradient Background */}
+        {/* Header */}
         <div className="relative overflow-hidden p-6 pb-8 border-b border-border/40">
-            <div className={`absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-rose-500/20 to-orange-500/0 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none`} />
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-rose-500/20 to-orange-500/0 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
             <SheetHeader className="relative z-10">
                 <SheetTitle className="text-3xl font-display font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
                     New Blood Request
@@ -196,9 +228,8 @@ export default function CreateRequestSheet({
                                     onSelect={(data) => {
                                         setFormData(prev => ({
                                             ...prev,
-                                            hospital: data.address, // or just the name if prefer
+                                            hospital: data.address,
                                             city: data.city || prev.city, 
-                                            // coordinates could be stored if we added fields for them
                                         }));
                                     }}
                                 />
@@ -206,12 +237,49 @@ export default function CreateRequestSheet({
                         </div>
 
                         <Field label="City" icon={MapPin}>
-                            <Input 
-                                value={formData.city} 
-                                onChange={(e) => handleChange('city', e.target.value)} 
-                                placeholder="e.g. Dhaka"
-                                className="h-11 rounded-xl bg-secondary/30 border-transparent focus:border-primary/20 focus:bg-background transition-all"
-                            />
+                            <Popover open={cityOpen} onOpenChange={setCityOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        aria-expanded={cityOpen}
+                                        className="w-full h-11 rounded-xl bg-secondary/30 border-transparent hover:bg-secondary/50 focus:border-primary/20 focus:bg-background transition-all justify-between font-normal"
+                                    >
+                                        {formData.city || "Select city..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                    <Command>
+                                        <CommandInput placeholder="Search city..." />
+                                        <CommandList>
+                                            <CommandEmpty>
+                                                {citiesLoading ? 'Loading cities...' : 'No city found.'}
+                                            </CommandEmpty>
+                                            <CommandGroup>
+                                                {cities.map((city) => (
+                                                    <CommandItem
+                                                        key={city.slug}
+                                                        value={city.name}
+                                                        onSelect={() => {
+                                                            handleChange('city', city.name);
+                                                            setCityOpen(false);
+                                                        }}
+                                                    >
+                                                        <Check
+                                                            className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                formData.city === city.name ? "opacity-100" : "opacity-0"
+                                                            )}
+                                                        />
+                                                        {city.name}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                         </Field>
 
                         <Field label="Contact Number" icon={Phone} required>
@@ -241,7 +309,7 @@ export default function CreateRequestSheet({
             </form>
         </div>
 
-        {/* Footer with Blur Effect */}
+        {/* Footer */}
         <div className="p-6 border-t border-border/40 bg-background/50 backdrop-blur-md">
             <SheetFooter className="flex-col sm:flex-row gap-3">
                 <Button 

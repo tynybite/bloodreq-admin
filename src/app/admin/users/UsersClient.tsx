@@ -15,6 +15,7 @@ import {
   Ban,
   UserX,
   Download,
+  Trash2,
   ChevronDown,
   Droplet,
   Heart,
@@ -40,8 +41,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import CountUp from "@/components/reactbits/CountUp";
-import { suspendUser, banUser, activateUser, bulkSuspendUsers, bulkBanUsers, getUser } from './actions';
+import { suspendUser, banUser, activateUser, bulkSuspendUsers, bulkBanUsers, getUser, deleteUser } from './actions';
 import { toast } from 'sonner';
 import { UserDetailSheet } from './UserDetailSheet';
 import { useTranslations } from 'next-intl';
@@ -86,6 +97,8 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Pagination & Sorting (placeholder logic for now as simplified in original)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -126,6 +139,21 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
         }));
     } catch (err: any) {
         toast.error(err.message);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await deleteUser(deleteTarget.id);
+      toast.success('User deleted successfully');
+      setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete user');
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -326,10 +354,14 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
                 </Badge>
               </div>
 
-              <div className="text-sm">
+              <div className="text-sm space-y-1">
                 <div className="flex items-center gap-2">
-                  <Heart className="w-4 h-4 text-rose-500" />
-                  <span>0 donations</span>
+                  <Heart className="w-3.5 h-3.5 text-rose-500" />
+                  <span>{user.donation_count || 0} donations</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Droplet className="w-3.5 h-3.5 text-blue-500" />
+                  <span>{user.request_count || 0} requests</span>
                 </div>
               </div>
 
@@ -385,6 +417,13 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
                             <UserX className="mr-2 h-4 w-4" />Ban
                         </DropdownMenuItem>
                     )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      className="text-rose-600 focus:text-rose-600 focus:bg-rose-500/10" 
+                      onClick={() => setDeleteTarget({ id: user.id, name: user.full_name || 'this user' })}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />Delete User
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -414,6 +453,36 @@ export default function UsersClient({ initialUsers, stats }: { initialUsers: any
         onOpenChange={setIsDetailOpen}
         onAction={handleAction}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-muted-foreground">
+                Are you sure you want to permanently delete <strong>{deleteTarget?.name}</strong>? This will:
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>Remove their account from the database</li>
+                  <li>Delete their Firebase authentication</li>
+                  <li>Cancel all their pending requests and donations</li>
+                </ul>
+                <span className="block mt-2 text-rose-500 font-medium">This action cannot be undone.</span>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={isDeleting}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete User'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }

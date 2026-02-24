@@ -119,7 +119,10 @@ export async function inviteModerator(email: string, role: string, countries: st
           updated_at: new Date()
         },
         $setOnInsert: {
-          created_at: new Date()
+          full_name: email.split('@')[0],
+          is_available_to_donate: false,
+          status: 'active',
+          created_at: new Date(),
         }
       },
       { upsert: true }
@@ -239,6 +242,61 @@ export async function updateModerator(
     { _id: moderatorId },
     { $set: updateFields }
   );
+
+  revalidatePath('/admin/moderators');
+  return { success: true };
+}
+
+export async function deleteModerator(currentUserId: string, moderatorId: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser || currentUser.uid !== currentUserId) {
+    return { success: false, message: 'Unauthorized' };
+  }
+
+  // Prevent self-deletion
+  if (currentUserId === moderatorId) {
+    return { success: false, message: 'You cannot delete your own account' };
+  }
+
+  const usersCollection = await getCollection<UserDocument>(Collections.USERS);
+  const adminUser = await usersCollection.findOne({ _id: currentUser.uid });
+
+  if (!adminUser || !adminUser.admin_details) {
+    return { success: false, message: 'Failed to verify your permissions' };
+  }
+
+  const currentUserLevel = ROLE_HIERARCHY[adminUser.admin_details.role || ''] ?? 0;
+
+  // Only admin+ can delete
+  if (currentUserLevel < ROLE_HIERARCHY['admin']) {
+    return { success: false, message: 'You do not have permission to delete moderators' };
+  }
+
+  // Get target moderator
+  const targetMod = await usersCollection.findOne({ _id: moderatorId });
+  if (!targetMod || !targetMod.admin_details) {
+    return { success: false, message: 'Moderator not found' };
+  }
+
+  const targetLevel = ROLE_HIERARCHY[targetMod.admin_details.role || ''] ?? 0;
+
+  // Can't delete someone with equal or higher role (unless super_admin)
+  if (currentUserLevel <= targetLevel && adminUser.admin_details.role !== 'super_admin') {
+    return { success: false, message: 'Cannot delete a user with equal or higher role' };
+  }
+
+  // Remove admin_details (demote to regular user) rather than full delete
+  await usersCollection.updateOne(
+    { _id: moderatorId },
+    { $unset: { admin_details: '' }, $set: { updated_at: new Date() } }
+  );
+
+  // Delete from Firebase Auth
+  try {
+    await getFirebaseAuth().deleteUser(moderatorId);
+  } catch (firebaseError: any) {
+    console.error('Firebase delete error (non-critical):', firebaseError.message);
+  }
 
   revalidatePath('/admin/moderators');
   return { success: true };

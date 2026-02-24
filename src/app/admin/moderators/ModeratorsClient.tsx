@@ -14,6 +14,7 @@ import {
   Activity,
   Eye,
   CheckCircle2,
+  Trash2,
 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import CountUp from "@/components/reactbits/CountUp";
-import { Moderator, toggleModeratorStatus } from './actions';
+import { Moderator, toggleModeratorStatus, deleteModerator } from './actions';
 import { toast } from "sonner";
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -60,6 +71,8 @@ export default function ModeratorsClient({ moderators, currentUserId, currentUse
   const [editModeratorOpen, setEditModeratorOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<{id: string, name: string} | null>(null);
   const [selectedModerator, setSelectedModerator] = useState<Moderator | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
   const t = useTranslations('moderators');
   const tCommon = useTranslations('common');
@@ -71,6 +84,25 @@ export default function ModeratorsClient({ moderators, currentUserId, currentUse
     } catch (error) {
       toast.error(tCommon('error'));
       console.error(error);
+    }
+  };
+
+  const handleDeleteModerator = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const result = await deleteModerator(currentUserId, deleteTarget.id);
+      if (result.success) {
+        toast.success('Moderator removed successfully');
+        router.refresh();
+      } else {
+        toast.error(result.message || 'Failed to delete moderator');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete moderator');
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -265,6 +297,17 @@ export default function ModeratorsClient({ moderators, currentUserId, currentUse
                             {mod.is_active ? <Ban className="mr-2 h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                             {mod.is_active ? 'Suspend' : 'Activate'}
                         </DropdownMenuItem>
+                        {mod.id !== currentUserId && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-rose-600 focus:text-rose-600 focus:bg-rose-500/10"
+                              onClick={() => setDeleteTarget({ id: mod.id, name: mod.profile?.full_name || 'this moderator' })}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />Delete
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -315,6 +358,35 @@ export default function ModeratorsClient({ moderators, currentUserId, currentUse
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Moderator</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-muted-foreground">
+                Are you sure you want to remove <strong>{deleteTarget?.name}</strong> from the team? This will:
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>Revoke all admin/moderator privileges</li>
+                  <li>Delete their authentication account</li>
+                </ul>
+                <span className="block mt-2 text-rose-500 font-medium">This action cannot be undone.</span>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteModerator}
+              disabled={isDeleting}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {isDeleting ? 'Removing...' : 'Remove Moderator'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }

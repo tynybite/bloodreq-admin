@@ -39,9 +39,9 @@ export default async function Dashboard() {
     ...d,
     id: d._id.toString(),
     _id: undefined,
-    donor_id: d.donor_id.toString(),
-    request_id: d.request_id.toString(),
-    fundraiser_id: d.fundraiser_id ? d.fundraiser_id.toString() : undefined,
+    donor_id: d.donor_id?.toString() ?? '',
+    request_id: d.request_id?.toString() ?? '',
+    fundraiser_id: d.fundraiser_id?.toString() ?? undefined,
   }));
 
   // Normalize Activity

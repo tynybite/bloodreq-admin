@@ -1,5 +1,5 @@
 
-import { getCollection, Collections, UserDocument } from '@/lib/db/mongodb';
+import { getCollection, Collections, UserDocument, DonationDocument, BloodRequestDocument } from '@/lib/db/mongodb';
 import UsersClient from "./UsersClient";
 
 // Helper to get count by status
@@ -10,16 +10,37 @@ async function getCountByStatus(status: string) {
 
 export default async function UsersPage() {
   const usersCollection = await getCollection<UserDocument>(Collections.USERS);
+  const donationsCollection = await getCollection<DonationDocument>(Collections.DONATIONS);
+  const requestsCollection = await getCollection<BloodRequestDocument>(Collections.BLOOD_REQUESTS);
 
   // Fetch Users
   const usersRaw = await usersCollection.find({})
     .sort({ created_at: -1 })
     .toArray();
-    
+
+  // Get per-user donation and request counts
+  const userIds = usersRaw.map(u => u._id.toString());
+
+  const [donationCounts, requestCounts] = await Promise.all([
+    donationsCollection.aggregate([
+      { $match: { donor_id: { $in: userIds } } },
+      { $group: { _id: '$donor_id', count: { $sum: 1 } } }
+    ]).toArray(),
+    requestsCollection.aggregate([
+      { $match: { requester_id: { $in: userIds } } },
+      { $group: { _id: '$requester_id', count: { $sum: 1 } } }
+    ]).toArray(),
+  ]);
+
+  const donationMap = new Map(donationCounts.map(d => [d._id, d.count]));
+  const requestMap = new Map(requestCounts.map(r => [r._id, r.count]));
+
   const users = usersRaw.map(user => ({
     ...user,
     id: user._id,
     _id: undefined,
+    donation_count: donationMap.get(user._id.toString()) || 0,
+    request_count: requestMap.get(user._id.toString()) || 0,
   }));
 
   // Calculate Stats
