@@ -2,6 +2,7 @@
 
 import { getCollection, Collections, ObjectId, UserDocument } from "@/lib/db/mongodb";
 import { getFirebaseAuth } from "@/lib/auth/firebase-admin";
+import { sendEmail } from "@/lib/email/email-service";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
@@ -77,19 +78,21 @@ export async function inviteModerator(email: string, role: string, countries: st
   try {
     // Check if user exists in Firebase
     let uid;
+    let tempPassword: string | null = null;
+    let isNewUser = false;
     try {
       const userRecord = await getFirebaseAuth().getUserByEmail(email);
       uid = userRecord.uid;
     } catch (e: any) {
       if (e.code === 'auth/user-not-found') {
-        const tempPassword = Math.random().toString(36).slice(-8) + 'Aa1!';
+        tempPassword = Math.random().toString(36).slice(-8) + 'Aa1!';
         const userRecord = await getFirebaseAuth().createUser({
           email,
           password: tempPassword,
           emailVerified: true,
         });
         uid = userRecord.uid;
-        console.log(`Created user ${email} with temp password: ${tempPassword}`);
+        isNewUser = true;
       } else {
         throw e;
       }
@@ -127,6 +130,62 @@ export async function inviteModerator(email: string, role: string, countries: st
       },
       { upsert: true }
     );
+
+    // Send credentials email
+    const adminPanelUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || 'https://admin.bloodreq.com';
+    const roleLabel = role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+    try {
+      if (isNewUser && tempPassword) {
+        // New user — send login credentials
+        await sendEmail({
+          to: email,
+          subject: `You've been invited as ${roleLabel} — BloodReq Admin`,
+          html: `
+            <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px;">
+              <h2 style="color: #dc2626; margin: 0 0 16px;">Welcome to BloodReq Admin</h2>
+              <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+                You have been invited as <strong>${roleLabel}</strong> on the BloodReq admin panel.
+                Use the credentials below to sign in:
+              </p>
+              <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <p style="margin: 0 0 8px; font-size: 14px; color: #6b7280;">Email</p>
+                <p style="margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #111827;">${email}</p>
+                <p style="margin: 0 0 8px; font-size: 14px; color: #6b7280;">Temporary Password</p>
+                <p style="margin: 0; font-size: 16px; font-weight: 600; color: #111827; font-family: monospace;">${tempPassword}</p>
+              </div>
+              <a href="${adminPanelUrl}" style="display: inline-block; background: #dc2626; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; font-size: 14px;">
+                Sign In to Admin Panel
+              </a>
+              <p style="color: #9ca3af; font-size: 13px; margin-top: 24px;">
+                Please change your password after first login.
+              </p>
+            </div>
+          `,
+        });
+      } else {
+        // Existing user — notify role assignment
+        await sendEmail({
+          to: email,
+          subject: `You've been added as ${roleLabel} — BloodReq Admin`,
+          html: `
+            <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px;">
+              <h2 style="color: #dc2626; margin: 0 0 16px;">BloodReq Admin Access</h2>
+              <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+                You have been assigned the <strong>${roleLabel}</strong> role on the BloodReq admin panel.
+                Sign in with your existing account credentials.
+              </p>
+              <a href="${adminPanelUrl}" style="display: inline-block; background: #dc2626; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; font-size: 14px; margin-top: 16px;">
+                Go to Admin Panel
+              </a>
+            </div>
+          `,
+        });
+      }
+    } catch (emailError) {
+      console.error('Failed to send invitation email:', emailError);
+      // Don't fail the whole operation if email fails — user was still created
+    }
 
     revalidatePath('/admin/moderators');
     return { success: true };
