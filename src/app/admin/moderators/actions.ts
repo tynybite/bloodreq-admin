@@ -74,7 +74,7 @@ export async function toggleModeratorStatus(id: string, isActive: boolean) {
   revalidatePath('/admin/moderators');
 }
 
-export async function inviteModerator(email: string, role: string, countries: string[]) {
+export async function inviteModerator(email: string, role: string, countries: string[], cities: string[] = []) {
   try {
     // Check if user exists in Firebase
     let uid;
@@ -115,7 +115,7 @@ export async function inviteModerator(email: string, role: string, countries: st
           admin_details: {
             role: role,
             assigned_countries: countries,
-            assigned_cities: [],
+            assigned_cities: cities,
             permissions: {},
             is_active: true,
           },
@@ -344,11 +344,8 @@ export async function deleteModerator(currentUserId: string, moderatorId: string
     return { success: false, message: 'Cannot delete a user with equal or higher role' };
   }
 
-  // Remove admin_details (demote to regular user) rather than full delete
-  await usersCollection.updateOne(
-    { _id: moderatorId },
-    { $unset: { admin_details: '' }, $set: { updated_at: new Date() } }
-  );
+  // Fully delete the user document from MongoDB
+  await usersCollection.deleteOne({ _id: moderatorId });
 
   // Delete from Firebase Auth
   try {

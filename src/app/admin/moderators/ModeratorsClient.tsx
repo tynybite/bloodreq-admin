@@ -335,6 +335,18 @@ export default function ModeratorsClient({ moderators, currentUserId, currentUse
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Cities</span>
+                      <div className="flex gap-1 flex-wrap justify-end">
+                        {mod.assigned_cities && mod.assigned_cities.length > 0 ? (
+                           mod.assigned_cities.map((c: string) => (
+                            <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>
+                          ))
+                        ) : (
+                            <span className="text-xs text-muted-foreground">All Cities</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Joined</span>
                       <span className="font-medium">{new Date(mod.created_at).toLocaleDateString()}</span>
                     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -32,16 +32,15 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { inviteModerator } from './actions';
-import { Loader2, Mail, Shield, Globe, Send } from "lucide-react";
+import { Loader2, Mail, Shield, Globe, Send, MapPin, X } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-
-// Simplified country list for now
-const countries = ["Bangladesh", "India", "Pakistan"];
+import { Badge } from "@/components/ui/badge";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
   role: z.enum(['super_admin', 'admin', 'manager', 'moderator', 'finance', 'analyst']),
-  country: z.string().min(1, "Please select an assigned country."), 
+  country: z.string().min(1, "Please select a country."),
+  cities: z.array(z.string()).optional(),
 });
 
 interface InviteModeratorSheetProps {
@@ -51,6 +50,11 @@ interface InviteModeratorSheetProps {
 
 export function InviteModeratorSheet({ open, onOpenChange }: InviteModeratorSheetProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [countries, setCountries] = useState<{ name: string; code: string }[]>([]);
+  const [cities, setCities] = useState<{ name: string }[]>([]);
+  const [loadingCountries, setLoadingCountries] = useState(false);
+  const [loadingCities, setLoadingCities] = useState(false);
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -58,17 +62,76 @@ export function InviteModeratorSheet({ open, onOpenChange }: InviteModeratorShee
       email: "",
       role: "moderator",
       country: "",
+      cities: [],
     },
   });
+
+  const watchedCountry = form.watch('country');
+
+  // Fetch countries on mount
+  useEffect(() => {
+    if (!open) return;
+    setLoadingCountries(true);
+    fetch('/api/locations/countries')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data?.countries) {
+          setCountries(data.data.countries);
+        }
+      })
+      .catch(err => console.error('Failed to load countries:', err))
+      .finally(() => setLoadingCountries(false));
+  }, [open]);
+
+  // Fetch cities when country changes
+  useEffect(() => {
+    if (!watchedCountry) {
+      setCities([]);
+      setSelectedCities([]);
+      return;
+    }
+    setLoadingCities(true);
+    setSelectedCities([]);
+    fetch(`/api/locations/cities?country=${encodeURIComponent(watchedCountry)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data?.cities) {
+          setCities(data.data.cities);
+        } else {
+          setCities([]);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load cities:', err);
+        setCities([]);
+      })
+      .finally(() => setLoadingCities(false));
+  }, [watchedCountry]);
+
+  const toggleCity = (cityName: string) => {
+    setSelectedCities(prev => {
+      const next = prev.includes(cityName)
+        ? prev.filter(c => c !== cityName)
+        : [...prev, cityName];
+      form.setValue('cities', next);
+      return next;
+    });
+  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
-      const result = await inviteModerator(values.email, values.role, [values.country]);
+      const result = await inviteModerator(
+        values.email,
+        values.role,
+        [values.country],
+        selectedCities,
+      );
       if (result.success) {
         toast.success("Invitation sent successfully");
         onOpenChange(false);
         form.reset();
+        setSelectedCities([]);
       } else {
         toast.error(result.message || "Failed to send invitation");
       }
@@ -180,36 +243,101 @@ export function InviteModeratorSheet({ open, onOpenChange }: InviteModeratorShee
 
                     <Separator />
 
-                    {/* Region Section */}
+                    {/* Country & City Section */}
                     <div className="space-y-4">
                          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                              <Globe className="w-4 h-4" /> Assignment
                          </h3>
+
+                        {/* Country */}
                         <FormField
                           control={form.control}
                           name="country"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Assigned Country</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
                                   <SelectTrigger className="h-11">
-                                    <SelectValue placeholder="Select country" />
+                                    <SelectValue placeholder={loadingCountries ? "Loading..." : "Select country"} />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
                                   {countries.map(c => (
-                                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                                    <SelectItem key={c.code || c.name} value={c.name}>{c.name}</SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
                               <FormDescription>
-                                  Limit the user's scope to a specific region.
+                                  The moderator will see requests from this country.
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
+
+                        {/* Cities (optional) */}
+                        {watchedCountry && (
+                          <div className="space-y-3">
+                            <FormLabel className="flex items-center gap-2">
+                              <MapPin className="w-4 h-4" /> Assigned Cities
+                              <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+                            </FormLabel>
+
+                            {loadingCities ? (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                                <Loader2 className="w-4 h-4 animate-spin" /> Loading cities...
+                              </div>
+                            ) : cities.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No cities found for this country.</p>
+                            ) : (
+                              <>
+                                {/* Selected cities pills */}
+                                {selectedCities.length > 0 && (
+                                  <div className="flex flex-wrap gap-2">
+                                    {selectedCities.map(city => (
+                                      <Badge key={city} variant="secondary" className="pl-2 pr-1 py-1 gap-1">
+                                        {city}
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleCity(city)}
+                                          className="hover:bg-destructive/20 rounded-full p-0.5"
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* City grid */}
+                                <div className="max-h-40 overflow-y-auto rounded-lg border border-border/50 p-2 space-y-0.5">
+                                  {cities.map(city => {
+                                    const isSelected = selectedCities.includes(city.name);
+                                    return (
+                                      <button
+                                        key={city.name}
+                                        type="button"
+                                        onClick={() => toggleCity(city.name)}
+                                        className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                                          isSelected
+                                            ? 'bg-primary/10 text-primary font-medium'
+                                            : 'hover:bg-secondary/50'
+                                        }`}
+                                      >
+                                        {city.name}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                <FormDescription>
+                                  Leave empty to allow access to <strong>all cities</strong> in the selected country.
+                                </FormDescription>
+                              </>
+                            )}
+                          </div>
+                        )}
                     </div>
 
                     <SheetFooter className="pt-6">
