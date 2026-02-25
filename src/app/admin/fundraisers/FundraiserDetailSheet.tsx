@@ -221,27 +221,30 @@ export default function FundraiserDetailSheet({
                   )}
              </div>
 
-             {/* Documents (Placeholder for now) */}
+             {/* Documents */}
              <div className="space-y-2">
                  <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                      <ExternalLink className="w-4 h-4" /> Documents
                  </h3>
-                 {fundraiser.fundraiser_documents && fundraiser.fundraiser_documents.length > 0 ? (
+                 {(() => {
+                   const docs = fundraiser.documents || fundraiser.fundraiser_documents || [];
+                   return docs.length > 0 ? (
                      <div className="grid gap-2">
-                         {fundraiser.fundraiser_documents.map((doc: any, index: number) => (
+                         {docs.map((doc: any, index: number) => (
                              <a 
                                 key={doc.id || doc.url || index} 
                                 href={doc.document_url || doc.url} 
                                 target="_blank" 
                                 className="flex items-center gap-2 p-2 rounded-lg border border-border/50 hover:bg-secondary/50 text-sm text-blue-500 hover:underline"
                              >
-                                 <ExternalLink className="w-3 h-3" /> View Document
+                                 <ExternalLink className="w-3 h-3" /> {doc.name || 'View Document'}
                              </a>
                          ))}
                      </div>
-                 ) : (
+                   ) : (
                      <p className="text-sm text-muted-foreground italic">No documents attached.</p>
-                 )}
+                   );
+                 })()}
              </div>
 
 

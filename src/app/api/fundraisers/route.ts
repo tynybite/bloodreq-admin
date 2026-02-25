@@ -48,7 +48,7 @@ const createFundraiserSchema = z.object({
   description: z.string().optional(),
   deadline: z.string().optional(), // ISO date string
   documents: z.array(z.object({
-    url: z.string().url().or(z.string().startsWith('data:')), // Accept URL or Base64 data URI
+    url: z.string().min(1), // Accept relative paths from upload endpoint + full URLs
     type: z.string().optional(),
     name: z.string().optional()
   })).optional().default([])
