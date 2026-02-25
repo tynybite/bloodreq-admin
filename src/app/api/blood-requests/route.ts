@@ -21,6 +21,7 @@ const createBloodRequestSchema = z.object({
   notes: z.string().optional(),
   required_date: z.string().optional(),
   patient_gender: z.string().optional(),
+  medical_document_url: z.string().optional(),
 });
 
 // GET /api/blood-requests - List blood requests with filtering
@@ -119,6 +120,7 @@ export async function GET(request: NextRequest) {
         contact_number: req.contact_number,
         alternate_contact: req.alternate_contact,
         notes: req.notes || req.admin_notes, // Fallback to admin_notes if user notes empty
+        medical_document_url: req.medical_document_url,
         status: req.status,
         required_date: req.required_date,
         created_at: req.created_at,
@@ -175,6 +177,7 @@ export async function POST(request: NextRequest) {
       contact_number: data.contact_number,
       alternate_contact: data.alternate_contact,
       notes: data.notes,
+      medical_document_url: data.medical_document_url,
       status: 'pending',
       location: {
         type: 'Point',

@@ -16,9 +16,11 @@ export async function POST(request: NextRequest) {
       return errorResponse('No file uploaded', 'VALIDATION_ERROR', 400);
     }
 
-    // Basic validation
-    if (!file.type.startsWith('image/')) {
-        return errorResponse('Only image files are allowed', 'VALIDATION_ERROR', 400);
+    // Basic validation - allow images, PDFs, and common document types
+    const allowedTypes = ['image/', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument'];
+    const isAllowed = allowedTypes.some(t => file.type.startsWith(t));
+    if (!isAllowed) {
+        return errorResponse('Only images and document files (PDF, DOC) are allowed', 'VALIDATION_ERROR', 400);
     }
 
     const bytes = await file.arrayBuffer();
